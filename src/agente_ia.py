@@ -14,8 +14,6 @@ from PIL import Image
 from openai import OpenAI
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from agno.agent import Agent
-from agno.models.openai import OpenAIChat
 from dotenv import load_dotenv
 
 # Carregar variáveis de ambiente
@@ -399,16 +397,7 @@ class ContentGeneratorAgent:
     def __init__(self):
         self.web_search_tool = WebSearchTool()
         self.image_generator = ImageGeneratorTool()
-        self.agent = Agent(
-            model=OpenAIChat(id="gpt-3.5-turbo"),
-            instructions=[
-                "Você é um especialista em criação de conteúdo estruturado.",
-                "Analise informações de múltiplas fontes e crie textos bem organizados.",
-                "Inclua fontes somente se forem reais e verificáveis; não invente fontes.",
-                "Retorne apenas JSON válido com as chaves: titulo, subtitulo, conteudo. Não inclua rótulos textuais (como 'Título:', 'Subtítulo:' ou 'Conteúdo:') dentro dos valores."
-            ],
-            markdown=False
-        )
+        self.client = OpenAI()
     
     def generate_structured_content(self, tema: str, generate_image: bool = True, estilo_imagem: str = "realista") -> Dict[str, Any]:
         """
@@ -474,13 +463,20 @@ class ContentGeneratorAgent:
         Retorne APENAS o JSON, sem texto adicional.
         """
         
-        # Gerar resposta usando o agente Agno
-        response = self.agent.run(prompt)
+        # Gerar resposta usando OpenAI diretamente
+        response = self.client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Você é um especialista em criação de conteúdo estruturado. Analise informações de múltiplas fontes e crie textos bem organizados. Inclua fontes somente se forem reais e verificáveis; não invente fontes. Retorne apenas JSON válido com as chaves: titulo, subtitulo, conteudo. Não inclua rótulos textuais (como 'Título:', 'Subtítulo:' ou 'Conteúdo:') dentro dos valores."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
         
         try:
             # Tentar parsear como JSON
-            # Extrair conteúdo da resposta do Agno
-            response_text = response.content if hasattr(response, 'content') else str(response)
+            # Extrair conteúdo da resposta do OpenAI
+            response_text = response.choices[0].message.content
             def _clean_value(s: str) -> str:
                 import re
                 s = s.strip()
