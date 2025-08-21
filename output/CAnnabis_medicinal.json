@@ -1,0 +1,19 @@
+{
+  "tema": "cannabis medicinal",
+  "data_geracao": "2025-08-21T13:06:03.699354",
+  "conteudo": {
+    "titulo": "Cannabis Medicinal: Benefícios, Uso e Legislação",
+    "subtitulo": "Uma visão abrangente sobre o uso terapêutico da cannabis",
+    "conteudo": "A cannabis medicinal, também conhecida como maconha medicinal, tem sido objeto de crescente interesse devido aos seus potenciais benefícios terapêuticos para uma variedade de condições médicas. Estudos e relatos de pacientes indicam que a cannabis pode ser eficaz no tratamento de dores crônicas, espasmos musculares, náuseas, ansiedade, epilepsia, glaucoma, entre outras condições. Os compostos ativos da planta, conhecidos como canabinoides, são responsáveis por esses efeitos, sendo os mais conhecidos o THC e o CBD. O THC é o principal responsável pelos efeitos psicoativos da maconha, enquanto o CBD possui propriedades terapêuticas sem os efeitos psicoativos. Devido a essas propriedades, a cannabis medicinal tem sido legalizada em diversos países e estados, permitindo seu uso sob prescrição médica. No Brasil, a Anvisa (Agência Nacional de Vigilância Sanitária) regulamentou o registro de medicamentos à base de cannabis, facilitando o acesso da população a tratamentos com a planta. Apesar dos avanços na legislação, o debate sobre a cannabis medicinal ainda levanta questões éticas, científicas e sociais. É importante ressaltar a importância de um acompanhamento médico adequado e da observância das leis locais ao considerar o uso da cannabis para fins medicinais. Em resumo, a cannabis medicinal representa uma alternativa promissora para o tratamento de diversas condições médicas, mas seu uso deve ser realizado de forma responsável e legal, respeitando as normas estabelecidas em cada jurisdição.",
+    "fontes": [],
+    "imagem": {
+      "url": "https://oaidalleapiprodscus.blob.core.windows.net/private/org-4rhiijMgN3qRSXbFCf1r8ZyC/user-vgqYmBftkR18sUTIjgJvZzf3/img-iGSJkNmjVlHbJ7XBeoNeATuu.png?st=2025-08-21T15%3A06%3A01Z&se=2025-08-21T17%3A06%3A01Z&sp=r&sv=2024-08-04&sr=b&rscd=inline&rsct=image/png&skoid=38e27a3b-6174-4d3e-90ac-d7d9ad49543f&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-08-21T09%3A44%3A49Z&ske=2025-08-22T09%3A44%3A49Z&sks=b&skv=2024-08-04&sig=39nxtXH/uNEEY%2BNaskIBUbIc7NEy2fyRGXP2REFCRYU%3D",
+      "local_path": "output/Cannabis_Medicinal_Benefícios_Uso_e_Legislação_image.jpg",
+      "prompt_usado": "Gere uma imagem sobre esse tema #Cannabis Medicinal: Benefícios, Uso e Legislação que represente esses elementos de forma informativa, seja cuidadoso com os detalhes e evite aberrações, faça com que a imagem seja interessante e humanizada, evite imagens sem sentido e abstratas, seja concreto e trabalhe com o realismo. Elementos importantes a incluir: cannabis medicinal. Estilo: fotorrealista, alta qualidade, bem iluminado, composição profissional.",
+      "modelo": "dall-e-3",
+      "tamanho": "1792x1024",
+      "data_geracao": "2025-08-21T13:06:03.699319"
+    }
+  },
+  "workflow_version": "agno-1.0"
+}

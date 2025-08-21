@@ -1,0 +1,30 @@
+{
+  "tema": "Cannabis e autismo",
+  "data_geracao": "2025-08-21T11:14:24.211796",
+  "conteudo": {
+    "titulo": "Cannabis e autismo: Explorando a relação entre os dois universos",
+    "subtitulo": "Entenda como a Cannabis pode influenciar no tratamento de pessoas com autismo",
+    "conteudo": "A relação entre Cannabis e autismo tem despertado o interesse de diversos pesquisadores e profissionais da saúde, uma vez que a Cannabis possui compostos que podem ter efeitos benéficos no tratamento de sintomas associados ao autismo. De acordo com o resumo simulado sobre o tema, a CBD (canabidiol), um dos compostos presentes na Cannabis, tem se destacado por seu potencial terapêutico no manejo de características como ansiedade, agressividade e problemas de sono em indivíduos autistas. Já a análise detalhada apresentada na outra fonte simulada evidencia que estudos têm demonstrado que a Cannabis pode atuar no sistema endocanabinoide do corpo humano, que desempenha um papel crucial na regulação de funções como humor, sono e cognição. Além disso, pesquisas apontam para a melhoria na qualidade de vida dos pacientes com autismo que fazem uso controlado de produtos à base de Cannabis. No entanto, é importante ressaltar que ainda há muitas controvérsias e debates em relação ao uso da Cannabis no tratamento do autismo, exigindo mais investigações científicas e acompanhamento rigoroso de profissionais de saúde especializados. Portanto, a discussão sobre a utilização da Cannabis como forma terapêutica para pessoas com autismo continua em evolução, sendo fundamental a análise cuidadosa de todos os aspectos envolvidos nesse contexto.",
+    "fontes": [
+      {
+        "titulo": "Informações sobre Cannabis e autismo - Fonte Simulada 1",
+        "link": "https://exemplo1.com",
+        "resumo": "Este é um resumo simulado sobre Cannabis e autismo. Contém informações básicas e relevantes para demonstração."
+      },
+      {
+        "titulo": "Análise de Cannabis e autismo - Fonte Simulada 2",
+        "link": "https://exemplo2.com",
+        "resumo": "Análise detalhada sobre Cannabis e autismo com dados e estatísticas importantes para compreensão do tema."
+      }
+    ],
+    "imagem": {
+      "url": "https://oaidalleapiprodscus.blob.core.windows.net/private/org-4rhiijMgN3qRSXbFCf1r8ZyC/user-vgqYmBftkR18sUTIjgJvZzf3/img-MQgbmbyHyGBduJFpgGQ83bOr.png?st=2025-08-21T13%3A14%3A19Z&se=2025-08-21T15%3A14%3A19Z&sp=r&sv=2024-08-04&sr=b&rscd=inline&rsct=image/png&skoid=31d50bd4-689f-439b-a875-f22bd677744d&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-08-21T09%3A46%3A06Z&ske=2025-08-22T09%3A46%3A06Z&sks=b&skv=2024-08-04&sig=zZSpjbnz4%2Bdu1KAZLBIKV1eiHjh7bFFZwWjwZNQJyA8%3D",
+      "local_path": "output/Cannabis_e_autismo_Explorando_a_relação_entre_os_d_image.jpg",
+      "prompt_usado": "Gere uma imagem sobre esse tema #Cannabis e autismo: Explorando a relação entre os dois universos que represente esses elementos de forma informativa, seja cuidadoso com os detalhes e evite aberrações, faça com que a imagem seja interessante e humanizada, evite imagens sem sentido e abstratas, seja concreto e trabalhe com o realismo. Elementos importantes a incluir: Cannabis e autismo. Estilo: fotorrealista, alta qualidade, bem iluminado, composição profissional.",
+      "modelo": "dall-e-3",
+      "tamanho": "1024x1024",
+      "data_geracao": "2025-08-21T11:14:24.211775"
+    }
+  },
+  "workflow_version": "agno-1.0"
+}

@@ -1,0 +1,30 @@
+{
+  "tema": "canabis medicinal",
+  "data_geracao": "2025-08-21T10:03:07.711091",
+  "conteudo": {
+    "titulo": "O Potencial Terapêutico da Cannabis Medicinal",
+    "subtitulo": "Explorando os benefícios e desafios dessa alternativa de tratamento",
+    "conteudo": "A cannabis medicinal tem despertado interesse devido ao seu potencial terapêutico. De acordo com as informações da Fonte Simulada 1, essa planta possui propriedades que podem ser benéficas no tratamento de diversas condições de saúde. Já a análise mais detalhada da Fonte Simulada 2 destaca que a cannabis medicinal possui compostos como o THC e o CBD, que atuam no organismo de maneiras distintas. O THC é conhecido por seus efeitos psicoativos, enquanto o CBD tem propriedades terapêuticas sem produzir os mesmos efeitos. Essa combinação de compostos tem sido utilizada no alívio de dores crônicas, sintomas de doenças neurológicas e até mesmo no controle de náuseas e vômitos em pacientes em tratamento de quimioterapia. Contudo, apesar dos potenciais benefícios, a legalização e regulamentação do uso da cannabis medicinal ainda enfrenta desafios em muitos países devido a questões éticas, regulatórias e de segurança. É essencial que haja mais estudos e pesquisas para embasar a utilização adequada dessa alternativa de tratamento, garantindo a segurança e eficácia para os pacientes que dela necessitam.",
+    "fontes": [
+      {
+        "titulo": "Informações sobre canabis medicinal - Fonte Simulada 1",
+        "link": "https://exemplo1.com",
+        "resumo": "Este é um resumo simulado sobre canabis medicinal. Contém informações básicas e relevantes para demonstração."
+      },
+      {
+        "titulo": "Análise de canabis medicinal - Fonte Simulada 2",
+        "link": "https://exemplo2.com",
+        "resumo": "Análise detalhada sobre canabis medicinal com dados e estatísticas importantes para compreensão do tema."
+      }
+    ],
+    "imagem": {
+      "url": "https://oaidalleapiprodscus.blob.core.windows.net/private/org-4rhiijMgN3qRSXbFCf1r8ZyC/user-vgqYmBftkR18sUTIjgJvZzf3/img-fbGrb6bDQ2GBM3IuydcdJ8BR.png?st=2025-08-21T12%3A03%3A05Z&se=2025-08-21T14%3A03%3A05Z&sp=r&sv=2024-08-04&sr=b&rscd=inline&rsct=image/png&skoid=31d50bd4-689f-439b-a875-f22bd677744d&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-08-21T12%3A15%3A58Z&ske=2025-08-22T12%3A15%3A58Z&sks=b&skv=2024-08-04&sig=Xt/Rg7Ub2DNySnEbcc53FCKVJJIBx30JiDTI9dpRDIU%3D",
+      "local_path": "output/O_Potencial_Terapêutico_da_Cannabis_Medicinal_image.jpg",
+      "prompt_usado": "Gere uma imagem sobre esse tema #O Potencial Terapêutico da Cannabis Medicinal que represente esses elementos de forma informativa, seja cuidadoso com os detalhes e evite aberrações, faça com que a imagem seja interessante e humanizada, evite imagens sem sentido e abstratas, seja concreto e trabalhe com o realismo. Elementos importantes a incluir: canabis medicinal. Estilo: fotorrealista, alta qualidade, bem iluminado, composição profissional.",
+      "modelo": "dall-e-3",
+      "tamanho": "1024x1024",
+      "data_geracao": "2025-08-21T10:03:07.711061"
+    }
+  },
+  "workflow_version": "agno-1.0"
+}

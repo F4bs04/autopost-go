@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clio - Agente de Conteúdo</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%231f2937'/%3E%3Ctext x='32' y='40' font-size='28' text-anchor='middle' fill='%23a78bfa' font-family='Arial, Helvetica, sans-serif'%3EC%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>Clio</h1>
+      <p class="subtitle">Gere conteúdo e imagem a partir de um tema</p>
+    </header>
+
+    <section class="chat">
+      <div class="chat-input">
+        <input id="tema" type="text" placeholder="Digite um tema (ex.: inteligência artificial, blockchain, etc.)" />
+        <div class="style-selector">
+          <label for="estiloImagem">Estilo da imagem:</label>
+          <select id="estiloImagem">
+            <option value="realista">Realista</option>
+            <option value="ilustracao">Ilustração</option>
+            <option value="abstrato">Abstrato</option>
+            <option value="criativo">Criativo</option>
+          </select>
+        </div>
+        <button id="btnEnviar" type="button">Gerar</button>
+      </div>
+      <div id="status" class="status" aria-live="polite"></div>
+      <div id="loader" class="loader" role="status" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
+        <span>Gerando conteúdo...</span>
+      </div>
+    </section>
+
+    <section id="resultado" class="resultado hidden">
+      <div class="card">
+        <div class="card-image">
+          <img id="imgTema" alt="Imagem do tema" />
+        </div>
+        <div class="card-content">
+          <h2 id="titulo"></h2>
+          <h3 id="subtitulo"></h3>
+          <div id="conteudo" class="rich"></div>
+          <div id="fontes" class="fontes"></div>
+          <div class="actions">
+            <button id="btnRegerarTexto" type="button" class="secondary">Gerar novamente texto</button>
+            <button id="btnRegerarImagem" type="button" class="secondary">Gerar novamente imagem</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
