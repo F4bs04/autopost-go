@@ -66,7 +66,7 @@ class GenerateResponse(BaseModel):
     workflow_version: str
 
 
-@app.post("/api/test")
+@app.api_route("/api/test", methods=["GET", "POST", "OPTIONS"])
 async def test_openai():
     """Endpoint de teste para verificar se OpenAI está funcionando"""
     try:
