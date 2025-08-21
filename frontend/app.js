@@ -1,3 +1,6 @@
+// Configuração da API - detecta automaticamente se está em produção ou desenvolvimento
+const API_BASE = window.location.origin;
+
 const input = document.getElementById('tema');
 const btn = document.getElementById('btnEnviar');
 const estiloImagem = document.getElementById('estiloImagem');
@@ -59,6 +62,29 @@ function setLoading(loading, msg = '') {
   }
 }
 
+// Função para tratar erros de rede e API
+function handleFetchError(error, context = 'operação') {
+  console.error(`Erro na ${context}:`, error);
+  
+  if (error.name === 'TypeError' && error.message.includes('fetch')) {
+    return `Erro de conexão: Verifique se a aplicação está rodando corretamente. ${error.message}`;
+  }
+  
+  if (error.message.includes('500')) {
+    return `Erro interno do servidor: Verifique se a chave OPENAI_API_KEY está configurada corretamente.`;
+  }
+  
+  if (error.message.includes('404')) {
+    return `Endpoint não encontrado: Verifique se a API está rodando na URL correta.`;
+  }
+  
+  if (error.message.includes('CORS')) {
+    return `Erro de CORS: Problema de configuração entre frontend e backend.`;
+  }
+  
+  return `Erro na ${context}: ${error.message}`;
+}
+
 async function gerar() {
   const tema = (input.value || '').trim();
   const estilo = estiloImagem.value || 'realista';
@@ -72,7 +98,7 @@ async function gerar() {
   resultado.classList.add('hidden');
 
   try {
-    const resp = await fetch('/api/generate', {
+    const resp = await fetch(`${API_BASE}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tema, estilo_imagem: estilo })
@@ -128,8 +154,8 @@ async function gerar() {
     resultado.classList.remove('hidden');
     setLoading(false, 'Concluído!');
   } catch (err) {
-    console.error(err);
-    setLoading(false, `Falha ao gerar: ${err.message}`);
+    const errorMsg = handleFetchError(err, 'geração de conteúdo');
+    setLoading(false, errorMsg);
   }
 }
 
@@ -147,7 +173,7 @@ async function regerarTexto() {
   }
   setLoading(true, 'Regerando texto...');
   try {
-    const resp = await fetch('/api/regenerate-text', {
+    const resp = await fetch(`${API_BASE}/api/regenerate-text`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tema })
@@ -181,8 +207,8 @@ async function regerarTexto() {
     resultado.classList.remove('hidden');
     setLoading(false, 'Texto atualizado!');
   } catch (err) {
-    console.error(err);
-    setLoading(false, `Falha ao regerar texto: ${err.message}`);
+    const errorMsg = handleFetchError(err, 'regeneração de texto');
+    setLoading(false, errorMsg);
   }
 }
 
@@ -197,7 +223,7 @@ async function regerarImagem() {
   }
   setLoading(true, 'Regerando imagem...');
   try {
-    const resp = await fetch('/api/regenerate-image', {
+    const resp = await fetch(`${API_BASE}/api/regenerate-image`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ titulo: tituloAtual, tema: tema || null, estilo_imagem: estilo })
@@ -226,8 +252,8 @@ async function regerarImagem() {
     resultado.classList.remove('hidden');
     setLoading(false, 'Imagem atualizada!');
   } catch (err) {
-    console.error(err);
-    setLoading(false, `Falha ao regerar imagem: ${err.message}`);
+    const errorMsg = handleFetchError(err, 'regeneração de imagem');
+    setLoading(false, errorMsg);
   }
 }
 
