@@ -8,12 +8,13 @@ import os
 import uvicorn
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
+    port = int(os.environ.get("PORT", 8080))
     host = "0.0.0.0"
     
     print(f"🚀 Iniciando servidor na porta {port}")
     print(f"🌐 Host: {host}")
     print(f"📍 Health check: /api/health")
+    print(f"🌍 URL: autopost-go-production.up.railway.app")
     
     uvicorn.run(
         "app:app",
