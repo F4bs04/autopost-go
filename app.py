@@ -18,6 +18,13 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+# Adicionar logs de inicialização
+@app.on_event("startup")
+async def startup_event():
+    print("🚀 Clio Agent API iniciando...")
+    print(f"📍 Health check disponível em: /api/health")
+    print(f"📚 Documentação em: /docs")
+
 # CORS configurado para frontends externos
 app.add_middleware(
     CORSMiddleware,

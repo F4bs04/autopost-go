@@ -5,8 +5,3 @@ builder = "nixpacks"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
-
-[env]
-# Variáveis de ambiente necessárias
-PYTHONPATH = "/app"
-PORT = "8000"

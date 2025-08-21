@@ -37,7 +37,18 @@ O Railway detectará automaticamente:
 
 ### `Procfile`
 ```
-web: uvicorn app:app --host 0.0.0.0 --port $PORT
+web: python start.py
+```
+
+### `start.py`
+```python
+#!/usr/bin/env python3
+import os
+import uvicorn
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("app:app", host="0.0.0.0", port=port, log_level="info")
 ```
 
 ### `railway.toml`
