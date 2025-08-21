@@ -28,10 +28,11 @@ async def startup_event():
 # CORS configurado para frontends externos
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Permite qualquer origem para simplificar deploy
-    allow_credentials=False,  # Desabilitado para evitar problemas com wildcard
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Garantir diretórios
@@ -76,6 +77,14 @@ async def generate(req: GenerateRequest):
     4. Retorna tudo em formato JSON
     """
     try:
+        # Verificar se a chave OpenAI está configurada
+        openai_key = os.getenv('OPENAI_API_KEY')
+        if not openai_key:
+            raise HTTPException(
+                status_code=500, 
+                detail="OPENAI_API_KEY não configurada. Configure a variável de ambiente no Railway."
+            )
+        
         workflow = ResearchWorkflow()
 
         def run_workflow():
@@ -96,7 +105,10 @@ async def generate(req: GenerateRequest):
             img["public_url"] = f"/output/{filename}"
 
         return result
+    except HTTPException:
+        raise
     except Exception as e:
+        print(f"Erro na geração: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro ao gerar conteúdo: {str(e)}")
 
 
