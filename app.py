@@ -66,6 +66,31 @@ class GenerateResponse(BaseModel):
     workflow_version: str
 
 
+@app.post("/api/test")
+async def test_openai():
+    """Endpoint de teste para verificar se OpenAI está funcionando"""
+    try:
+        openai_key = os.getenv('OPENAI_API_KEY')
+        if not openai_key:
+            return {"error": "OPENAI_API_KEY não configurada"}
+        
+        from openai import OpenAI
+        client = OpenAI()
+        
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": "Diga apenas 'teste ok'"}],
+            max_tokens=10
+        )
+        
+        return {
+            "status": "success",
+            "response": response.choices[0].message.content,
+            "key_configured": True
+        }
+    except Exception as e:
+        return {"error": str(e), "key_configured": bool(os.getenv('OPENAI_API_KEY'))}
+
 @app.post("/api/generate", response_model=GenerateResponse)
 async def generate(req: GenerateRequest):
     """Gera conteúdo e imagem a partir de um tema e retorna o JSON completo.
@@ -108,7 +133,10 @@ async def generate(req: GenerateRequest):
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
         print(f"Erro na geração: {str(e)}")
+        print(f"Stack trace: {error_details}")
         raise HTTPException(status_code=500, detail=f"Erro ao gerar conteúdo: {str(e)}")
 
 
