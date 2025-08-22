@@ -33,6 +33,7 @@ async def startup_event():
         while True:
             try:
                 cutoff = datetime.now() - timedelta(days=1)
+                # Limpeza de imagens temporárias
                 base_dir = "output/tmp"
                 for fname in os.listdir(base_dir):
                     fpath = os.path.join(base_dir, fname)
@@ -44,6 +45,18 @@ async def startup_event():
                     except Exception as _e:
                         # apenas loga; nunca derruba o loop
                         print(f"[cleanup] erro removendo {fpath}: {_e}")
+
+                # Limpeza de textos gerados (JSON/MD) com mais de 24h
+                content_dir = "output"
+                for fname in os.listdir(content_dir):
+                    fpath = os.path.join(content_dir, fname)
+                    try:
+                        if os.path.isfile(fpath) and (fname.endswith('.json') or fname.endswith('.md')):
+                            mtime = datetime.fromtimestamp(os.path.getmtime(fpath))
+                            if mtime < cutoff:
+                                os.remove(fpath)
+                    except Exception as _e:
+                        print(f"[cleanup] erro removendo conteúdo {fpath}: {_e}")
             except Exception as e:
                 print(f"[cleanup] erro no ciclo: {e}")
             # aguarda 1 hora entre limpezas
@@ -173,11 +186,17 @@ async def generate(req: GenerateRequest, request: Request):
                     img["absolute_public_url"] = f"{base}{rel}"
                 else:
                     img["absolute_public_url"] = rel
+                # Campo de compatibilidade: 'url' aponta para a URL absoluta local
+                img["url"] = img.get("absolute_public_url") or img.get("public_url")
             except Exception:
                 pass
             # Remover URL externa do provedor (azure blob) para evitar uso pelo cliente
             if "url" in img:
-                img.pop("url", None)
+                # se for diferente da nossa absolute_public_url, substitui
+                if img.get("absolute_public_url"):
+                    img["url"] = img["absolute_public_url"]
+                else:
+                    img.pop("url", None)
 
         return result
     except HTTPException:
@@ -286,11 +305,13 @@ async def regenerate_image(req: RegenerateImageRequest, request: Request):
                         img["absolute_public_url"] = f"{base}{rel}"
                     else:
                         img["absolute_public_url"] = rel
+                    # Campo de compatibilidade: 'url' aponta para a URL absoluta local
+                    img["url"] = img.get("absolute_public_url") or img.get("public_url")
                 except Exception:
                     pass
                 # Remover URL externa do provedor
-                if "url" in img:
-                    img.pop("url", None)
+                if "url" in img and img.get("url") and img.get("absolute_public_url") and img["url"] != img["absolute_public_url"]:
+                    img["url"] = img["absolute_public_url"]
                 return {"imagem": img}
             return {"imagem": None, "error": "Falha ao gerar imagem. Verifique a chave OPENAI_API_KEY e permissões do modelo."}
 
