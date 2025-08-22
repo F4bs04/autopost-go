@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -126,7 +126,7 @@ async def test_openai():
         return {"error": str(e), "key_configured": bool(os.getenv('OPENAI_API_KEY'))}
 
 @app.post("/api/generate", response_model=GenerateResponse)
-async def generate(req: GenerateRequest):
+async def generate(req: GenerateRequest, request: Request):
     """Gera conteúdo e imagem a partir de um tema e retorna o JSON completo.
     
     Este endpoint é o principal da API. Ele:
@@ -163,6 +163,16 @@ async def generate(req: GenerateRequest):
                 filename = os.path.basename(local_path)
                 # Por padrão, expõe via /output
                 img["public_url"] = f"/output/{filename}"
+            # Construir URL absoluta para evitar problemas de CORS em clientes externos
+            try:
+                base = str(request.base_url).rstrip('/')
+                rel = img.get("public_url", "")
+                if rel.startswith('/'):
+                    img["absolute_public_url"] = f"{base}{rel}"
+                else:
+                    img["absolute_public_url"] = rel
+            except Exception:
+                pass
 
         return result
     except HTTPException:
@@ -245,7 +255,7 @@ async def regenerate_text(req: RegenerateTextRequest):
         raise HTTPException(status_code=500, detail=f"Erro ao gerar texto: {str(e)}")
 
 @app.post("/api/regenerate-image")
-async def regenerate_image(req: RegenerateImageRequest):
+async def regenerate_image(req: RegenerateImageRequest, request: Request):
     """Regenera apenas a imagem a partir do título (opcionalmente usando o tema como elemento)."""
     try:
         tool = ImageGeneratorTool()
@@ -263,6 +273,16 @@ async def regenerate_image(req: RegenerateImageRequest):
                 if not img.get("public_url"):
                     filename = os.path.basename(img["local_path"])
                     img["public_url"] = f"/output/{filename}"
+                # Adiciona URL absoluta
+                try:
+                    base = str(request.base_url).rstrip('/')
+                    rel = img.get("public_url", "")
+                    if rel.startswith('/'):
+                        img["absolute_public_url"] = f"{base}{rel}"
+                    else:
+                        img["absolute_public_url"] = rel
+                except Exception:
+                    pass
                 return {"imagem": img}
             return {"imagem": None, "error": "Falha ao gerar imagem. Verifique a chave OPENAI_API_KEY e permissões do modelo."}
 

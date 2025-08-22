@@ -136,7 +136,7 @@ async function gerar() {
 
     // imagem
     const img = content.imagem || {};
-    const publicUrl = img.public_url || img.local_path || '';
+    const publicUrl = img.absolute_public_url || img.public_url || img.local_path || '';
     if (publicUrl) {
       imgTema.src = publicUrl;
       imgTema.alt = content.titulo || 'Imagem do tema';
@@ -241,7 +241,7 @@ async function regerarImagem() {
       throw new Error(data.error);
     }
     const image = (data && data.imagem) || {};
-    const publicUrl = image.public_url || image.local_path || '';
+    const publicUrl = image.absolute_public_url || image.public_url || image.local_path || '';
     if (publicUrl) {
       imgTema.src = publicUrl;
       imgTema.alt = tituloAtual || 'Imagem do tema';
