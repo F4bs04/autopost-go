@@ -173,6 +173,9 @@ async def generate(req: GenerateRequest, request: Request):
                     img["absolute_public_url"] = rel
             except Exception:
                 pass
+            # Remover URL externa do provedor (azure blob) para evitar uso pelo cliente
+            if "url" in img:
+                img.pop("url", None)
 
         return result
     except HTTPException:
@@ -283,6 +286,9 @@ async def regenerate_image(req: RegenerateImageRequest, request: Request):
                         img["absolute_public_url"] = rel
                 except Exception:
                     pass
+                # Remover URL externa do provedor
+                if "url" in img:
+                    img.pop("url", None)
                 return {"imagem": img}
             return {"imagem": None, "error": "Falha ao gerar imagem. Verifique a chave OPENAI_API_KEY e permissões do modelo."}
 
