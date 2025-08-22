@@ -189,11 +189,16 @@ class ImageGeneratorTool:
             if model_to_use == 'gpt-image-1' and size_to_use not in allowed_gpt_image1:
                 size_to_use = '1536x1024'
             try:
+                # Preferir base64 no gpt-image-1 para evitar dependência de URL externa
+                extra_args = {}
+                if model_to_use == 'gpt-image-1':
+                    extra_args["response_format"] = "b64_json"
                 response = self.client.images.generate(
                     model=model_to_use,
                     prompt=prompt,
                     size=size_to_use,
-                    n=1
+                    n=1,
+                    **extra_args
                 )
             except Exception as e:
                 # Tentar fallback amplo para dall-e-3 se gpt-image-1 falhar por qualquer motivo
@@ -204,6 +209,7 @@ class ImageGeneratorTool:
                     # Ajustar tamanho permitido para dall-e-3
                     allowed_dalle3 = {"1024x1024", "1024x1792", "1792x1024"}
                     size_for_dalle3 = self.image_size if self.image_size in allowed_dalle3 else "1792x1024"
+                    # Para dall-e-3, manter padrão (normalmente retorna URL)
                     response = self.client.images.generate(
                         model='dall-e-3',
                         prompt=prompt,
