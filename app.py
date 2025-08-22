@@ -6,7 +6,8 @@ from typing import Optional, List
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import FileResponse
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
+import asyncio
 
 from src.agente_ia import ResearchWorkflow, ContentGeneratorAgent, ImageGeneratorTool
 
@@ -19,11 +20,42 @@ app = FastAPI(
 )
 
 # Adicionar logs de inicialização
+cleanup_task = None
+
 @app.on_event("startup")
 async def startup_event():
     print("🚀 Clio Agent API iniciando...")
     print(f"📍 Health check disponível em: /api/health")
     print(f"📚 Documentação em: /docs")
+    # Iniciar tarefa assíncrona para limpar imagens temporárias
+    async def _cleanup_loop():
+        while True:
+            try:
+                cutoff = datetime.now() - timedelta(days=1)
+                base_dir = "output/tmp"
+                for fname in os.listdir(base_dir):
+                    fpath = os.path.join(base_dir, fname)
+                    try:
+                        if os.path.isfile(fpath):
+                            mtime = datetime.fromtimestamp(os.path.getmtime(fpath))
+                            if mtime < cutoff:
+                                os.remove(fpath)
+                    except Exception as _e:
+                        # apenas loga; nunca derruba o loop
+                        print(f"[cleanup] erro removendo {fpath}: {_e}")
+            except Exception as e:
+                print(f"[cleanup] erro no ciclo: {e}")
+            # aguarda 1 hora entre limpezas
+            await asyncio.sleep(3600)
+
+    global cleanup_task
+    cleanup_task = asyncio.create_task(_cleanup_loop())
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    global cleanup_task
+    if cleanup_task:
+        cleanup_task.cancel()
 
 # CORS configurado para frontends externos
 app.add_middleware(
@@ -37,10 +69,12 @@ app.add_middleware(
 
 # Garantir diretórios
 os.makedirs("output", exist_ok=True)
+os.makedirs("output/tmp", exist_ok=True)  # imagens temporárias (até 24h)
 os.makedirs("frontend", exist_ok=True)
 
 # Servir arquivos estáticos
 app.mount("/output", StaticFiles(directory="output"), name="output")
+app.mount("/temp", StaticFiles(directory="output/tmp"), name="temp")
 app.mount("/static", StaticFiles(directory="frontend"), name="frontend_static")
 
 
@@ -119,15 +153,16 @@ async def generate(req: GenerateRequest):
 
         result = await run_in_threadpool(run_workflow)
 
-        # Ajustar caminho da imagem para ser acessível via /output
+        # Ajustar caminho da imagem para ser acessível publicamente
         content = result.get("conteudo", {})
         img = content.get("imagem")
         if img and img.get("local_path"):
-            # Normalizar para URL pública
-            local_path = img["local_path"]
-            # Se o caminho for relativo dentro de output/, expor como /output/<file>
-            filename = os.path.basename(local_path)
-            img["public_url"] = f"/output/{filename}"
+            # Se o gerador já definiu public_url (ex.: /temp/...), manter
+            if not img.get("public_url"):
+                local_path = img["local_path"]
+                filename = os.path.basename(local_path)
+                # Por padrão, expõe via /output
+                img["public_url"] = f"/output/{filename}"
 
         return result
     except HTTPException:
@@ -217,10 +252,17 @@ async def regenerate_image(req: RegenerateImageRequest):
 
         def run_only_image():
             elementos = [req.tema] if req.tema else None
-            img = tool.generate_image(titulo=req.titulo, elementos=elementos, estilo_imagem=req.estilo_imagem)
+            img = tool.generate_image(
+                titulo=req.titulo,
+                elementos=elementos,
+                estilo_imagem=req.estilo_imagem,
+                save_to_temp=True
+            )
             if img and img.get("local_path"):
-                filename = os.path.basename(img["local_path"])
-                img["public_url"] = f"/output/{filename}"
+                # Se já veio com public_url de /temp, mantenha; senão, caia em /output
+                if not img.get("public_url"):
+                    filename = os.path.basename(img["local_path"])
+                    img["public_url"] = f"/output/{filename}"
                 return {"imagem": img}
             return {"imagem": None, "error": "Falha ao gerar imagem. Verifique a chave OPENAI_API_KEY e permissões do modelo."}
 

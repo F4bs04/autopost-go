@@ -163,7 +163,7 @@ class ImageGeneratorTool:
         # Para dall-e-3, tamanhos maiores são permitidos, mas podem ser mais lentos
         self.image_size = os.getenv('IMAGE_SIZE', '1536x1024')
     
-    def generate_image(self, titulo: str, elementos: List[str] = None, estilo_imagem: str = "realista") -> Optional[Dict[str, Any]]:
+    def generate_image(self, titulo: str, elementos: List[str] = None, estilo_imagem: str = "realista", save_to_temp: bool = True) -> Optional[Dict[str, Any]]:
         """
         Gera uma imagem baseada no título e elementos do conteúdo
         
@@ -218,17 +218,27 @@ class ImageGeneratorTool:
             data0 = response.data[0]
             image_path = None
             image_url = None
+            # Definir diretório de saída (temporário por padrão)
+            output_dir = "output/tmp" if save_to_temp else "output"
             if hasattr(data0, 'b64_json') and data0.b64_json:
-                image_path = self._save_b64_image(data0.b64_json, titulo)
+                image_path = self._save_b64_image(data0.b64_json, titulo, output_dir=output_dir)
             elif hasattr(data0, 'url') and data0.url:
                 image_url = data0.url
-                image_path = self._download_and_save_image(image_url, titulo)
+                image_path = self._download_and_save_image(image_url, titulo, output_dir=output_dir)
             else:
                 raise ValueError("Resposta da API de imagens sem b64_json ou url")
+
+            # Construir URL pública com base no diretório
+            import os as _os
+            _filename = _os.path.basename(image_path) if image_path else None
+            public_url = None
+            if _filename:
+                public_url = f"/temp/{_filename}" if save_to_temp else f"/output/{_filename}"
 
             result = {
                 'url': image_url,
                 'local_path': image_path,
+                'public_url': public_url,
                 'prompt_usado': prompt,
                 'modelo': model_to_use,
                 'tamanho': self.image_size,
