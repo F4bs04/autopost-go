@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import FileResponse
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 import os
 from datetime import datetime, timedelta
 import asyncio
@@ -58,6 +59,7 @@ async def shutdown_event():
         cleanup_task.cancel()
 
 # CORS configurado para frontends externos
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
