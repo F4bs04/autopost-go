@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: make setup
+      - name: Lint
+        run: |
+          source .venv/bin/activate
+          make lint
+      - name: Test
+        run: |
+          source .venv/bin/activate
+          make test
