@@ -164,6 +164,10 @@ class ImageGeneratorTool:
         # Tamanho padrão otimizado para compatibilidade e velocidade
         # Para gpt-image-1, suportado: '1024x1024', '1024x1536', '1536x1024', 'auto'
         # Para dall-e-3, tamanhos maiores são permitidos, mas podem ser mais lentos
+        self.image_size = os.getenv('IMAGE_SIZE', '1536x1024')
+        # Reutilizar conexões HTTP para downloads de imagens
+        self.session = requests.Session()
+=======
         self.image_size = image_size or os.getenv('IMAGE_SIZE', '1024x1024')
     
     def generate_image(self, titulo: str, elementos: List[str] = None, estilo_imagem: str = "realista", save_to_temp: bool = True, size: Optional[str] = None) -> Optional[Dict[str, Any]]:
@@ -424,24 +428,23 @@ class PexelsImageTool:
             filename = f"{filename}_image.jpg"
             filepath = os.path.join(output_dir, filename)
             
-            # Baixar a imagem
-            response = requests.get(image_url, timeout=30)
-            response.raise_for_status()
-            
-            # Verificar se o conteúdo foi baixado corretamente
-            if len(response.content) == 0:
-                raise Exception("Conteúdo da imagem vazio")
-            
-            logger.info(
-                "Tamanho do conteúdo baixado: %d bytes", len(response.content)
-            )
-            
-            # Converter para JPEG usando Pillow
+            # Baixar a imagem utilizando streaming para reduzir uso de memória
             from io import BytesIO
-            
-            # Abrir a imagem baixada
-            image = Image.open(BytesIO(response.content))
-            logger.info("Imagem aberta: %s, modo: %s", image.size, image.mode)
+            with self.session.get(image_url, stream=True, timeout=30) as response:
+                response.raise_for_status()
+                image_bytes = BytesIO()
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        image_bytes.write(chunk)
+                if image_bytes.tell() == 0:
+                    raise Exception("Conteúdo da imagem vazio")
+                logger.info(
+                    "Tamanho do conteúdo baixado: %d bytes", image_bytes.tell()
+                )
+                image_bytes.seek(0)
+                # Abrir a imagem baixada
+                image = Image.open(image_bytes)
+                logger.info("Imagem aberta: %s, modo: %s", image.size, image.mode)
             
             # Converter para RGB se necessário (JPEG não suporta transparência)
             if image.mode in ('RGBA', 'LA', 'P'):
