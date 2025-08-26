@@ -439,8 +439,23 @@ async def generate_pexels_image(req: GenerateImageRequest, request: Request):
                     img["url"] != img["absolute_public_url"]
                 ):
                     img["url"] = img["absolute_public_url"]
-                return {"imagem": img}
-            return {"imagem": None, "error": "Falha ao gerar imagem via Pexels."}
+                return {
+                    "imagem": img,
+                    "image": img,  # compat
+                    "url": img.get("url"),
+                    "public_url": img.get("public_url"),
+                    "absolute_public_url": img.get("absolute_public_url"),
+                    "source": "pexels",
+                    "success": True,
+                }
+            return {
+                "imagem": None,
+                "image": None,
+                "error": "Falha ao gerar imagem via Pexels.",
+                "message": "Falha ao gerar imagem via Pexels.",
+                "source": "pexels",
+                "success": False,
+            }
 
         result = await run_in_threadpool(run_generate_pexels)
         return result
