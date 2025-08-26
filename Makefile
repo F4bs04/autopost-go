@@ -14,8 +14,8 @@ setup:
 	@$(PY) -m venv .venv || true
 	@. .venv/Scripts/activate 2>/dev/null || . .venv/bin/activate 2>/dev/null || true; \
 		$(PIP) install --upgrade pip; \
-		$(PIP) install -r requirements.txt; \
-		$(PIP) install ruff pytest;
+               $(PIP) install -r requirements.lock; \
+               $(PIP) install ruff pytest;
 	@echo "[setup] Pronto. Ative a venv conforme seu SO."
 
 lint:
