@@ -274,28 +274,34 @@ class ImageGeneratorTool:
         """
         # Mapear estilos para palavras-chave específicas
         estilos_keywords = {
-            "realista": "fotorrealista, alta qualidade, bem iluminado, composição profissional, detalhado, natural",
-            "ilustracao": "ilustração digital, arte conceitual, estilo cartoon, colorido, limpo, vetorial",
-            "abstrato": "arte abstrata, formas geométricas, cores vibrantes, minimalista, conceitual, moderno",
-            "criativo": "arte criativa, imaginativo, surreal, único, experimental, artístico, inovador"
+            "realista": "fotografia realista, iluminação natural, alto detalhamento, foco nítido",
+            "ilustracao": "ilustração digital, traço limpo, paleta equilibrada",
+            "abstrato": "abstrato, formas geométricas, composição elegante",
+            "criativo": "estilo criativo, composição inovadora, visual impactante"
         }
         
-        # Template base adaptado para incluir estilo e o título como texto dentro da imagem
+        # Construir prompt base seguindo o padrão solicitado para redes sociais
         base_prompt = (
-            f"Gere uma imagem sobre esse tema #{titulo} que represente esses elementos de forma informativa, "
-            f"seja cuidadoso com os detalhes e evite aberrações, faça com que a imagem seja interessante e humanizada. "
-            f"Inclua obrigatoriamente o texto do título visível e legível dentro da imagem, escrito exatamente assim: \"{titulo}\". "
-            f"Garanta alto contraste e boa legibilidade do texto sobre o fundo."
+            f"Crie uma imagem científica ou realista que ilustre com precisão o tema proposto. "
+            f"A imagem deve ter um OVERLAY na parte INFERIOR (faixa/banda) com sombra/gradiente escuro semi-transparente, "
+            f"e sobre esse overlay posicione o texto do TÍTULO de forma centralizada e altamente legível. "
+            f"O texto deve ser exatamente o seguinte, entre parênteses: (" + titulo + "). "
+            f"Use tipografia forte, alto contraste e garanta legibilidade do texto sobre o overlay com sombra. "
+            f"Evite posicionar texto nas bordas externas; utilize margens seguras. "
+            f"O enquadramento deve ser adequado para redes sociais, com composição limpa e profissional."
         )
         
         # Adicionar elementos específicos se fornecidos
         if elementos and len(elementos) > 0:
             elementos_text = ", ".join(elementos[:5])  # Limitar a 5 elementos
-            base_prompt += f" Elementos importantes a incluir: {elementos_text}."
+            base_prompt += f" Elementos científicos/realistas importantes a incluir: {elementos_text}."
         
         # Adicionar diretrizes de estilo baseadas na seleção
         style_keywords = estilos_keywords.get(estilo_imagem, estilos_keywords["realista"])
-        technical_guidelines = f" Estilo: {style_keywords}."
+        technical_guidelines = (
+            f" Estilo: {style_keywords}. "
+            f"Manter aparência científica/realista, iluminação equilibrada, ruído mínimo e alta nitidez."
+        )
         
         return base_prompt + technical_guidelines
     

@@ -284,7 +284,7 @@ function mapFormatoToApiSize(value) {
     case '1440x1080':
       return '1024x1536'; // retrato compatível
     case '1920x1080':
-      return '1024x1792'; // retrato alto (para fallback no dall-e-3)
+      return '1536x1024'; // paisagem compatível
     case '1080x1080':
     default:
       return '1024x1024'; // quadrado
