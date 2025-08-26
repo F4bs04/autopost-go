@@ -183,11 +183,34 @@ class ImageGeneratorTool:
             
             # Gerar imagem usando o modelo de imagens da OpenAI (sem response_format)
             model_to_use = self.image_model
-            # Normalizar tamanho conforme o modelo para evitar 400 + retry
+            # Normalizar tamanho conforme o modelo para evitar 400 + retry, preservando a ORIENTAÇÃO desejada
             allowed_gpt_image1 = {"1024x1024", "1024x1536", "1536x1024", "auto"}
-            size_to_use = size or self.image_size
+            req_size = (size or self.image_size)
+            # Detectar orientação desejada a partir do tamanho solicitado (quando no formato WxH)
+            def _parse_wh(s: str) -> Optional[tuple]:
+                try:
+                    parts = s.lower().strip().split('x')
+                    if len(parts) != 2:
+                        return None
+                    w, h = int(parts[0]), int(parts[1])
+                    if w <= 0 or h <= 0:
+                        return None
+                    return (w, h)
+                except Exception:
+                    return None
+            wh = _parse_wh(req_size)
+            desired_orientation = 'square'
+            if wh:
+                desired_orientation = 'portrait' if wh[1] > wh[0] else ('landscape' if wh[0] > wh[1] else 'square')
+            size_to_use = req_size
             if model_to_use == 'gpt-image-1' and size_to_use not in allowed_gpt_image1:
-                size_to_use = '1536x1024'
+                # Escolhe o tamanho suportado mais próximo preservando orientação
+                if desired_orientation == 'portrait':
+                    size_to_use = '1024x1536'
+                elif desired_orientation == 'landscape':
+                    size_to_use = '1536x1024'
+                else:
+                    size_to_use = '1024x1024'
             try:
                 # Preferir base64 no gpt-image-1 para evitar dependência de URL externa
                 extra_args = {}
@@ -209,7 +232,14 @@ class ImageGeneratorTool:
                     # Ajustar tamanho permitido para dall-e-3
                     allowed_dalle3 = {"1024x1024", "1024x1792", "1792x1024"}
                     size_for_dalle3 = (size or self.image_size)
-                    size_for_dalle3 = size_for_dalle3 if size_for_dalle3 in allowed_dalle3 else "1792x1024"
+                    if size_for_dalle3 not in allowed_dalle3:
+                        # Preservar orientação desejada ao escolher fallback
+                        if desired_orientation == 'portrait':
+                            size_for_dalle3 = '1024x1792'
+                        elif desired_orientation == 'landscape':
+                            size_for_dalle3 = '1792x1024'
+                        else:
+                            size_for_dalle3 = '1024x1024'
                     # Para dall-e-3, manter padrão (normalmente retorna URL)
                     response = self.client.images.generate(
                         model='dall-e-3',
@@ -242,6 +272,17 @@ class ImageGeneratorTool:
             if _filename:
                 # Normaliza: quando salvo em tmp, expor via /output/tmp/<arquivo>
                 public_url = f"/output/tmp/{_filename}" if save_to_temp else f"/output/{_filename}"
+
+            # Pós-processamento: ajustar para o tamanho exato solicitado (se for WxH), via crop central e resize
+            try:
+                if size and image_path:
+                    target_wh = _parse_wh(size)
+                    if target_wh:
+                        self._postprocess_to_size(image_path, target_wh)
+                        # atualizar tamanho efetivo
+                        size_to_use = f"{target_wh[0]}x{target_wh[1]}"
+            except Exception as _pp_e:
+                print(f"Aviso: falha no pós-processamento de tamanho: {_pp_e}")
 
             result = {
                 'url': image_url,
@@ -358,6 +399,54 @@ class ImageGeneratorTool:
             print(f"Erro ao salvar imagem (url): {e}")
             raise
 
+    def _postprocess_to_size(self, image_path: str, target_wh: tuple[int, int]) -> None:
+        """Ajusta a imagem em image_path para exatamente target_wh (W,H) via crop central e resize.
+        Mantém JPEG RGB e sobrescreve o arquivo no mesmo caminho.
+        """
+        try:
+            tw, th = int(target_wh[0]), int(target_wh[1])
+            if tw <= 0 or th <= 0:
+                return
+            img = Image.open(image_path)
+            w, h = img.size
+            # Garantir RGB
+            if img.mode in ('RGBA', 'LA', 'P'):
+                bg = Image.new('RGB', (w, h), (255, 255, 255))
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                if img.mode == 'RGBA':
+                    bg.paste(img, mask=img.split()[-1])
+                else:
+                    bg.paste(img)
+                img = bg
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+
+            # Crop para ajustar a proporção
+            import math
+            target_ratio = tw / th
+            img_ratio = w / h if h != 0 else target_ratio
+            if abs(img_ratio - target_ratio) > 1e-3:
+                if img_ratio > target_ratio:
+                    # Largura em excesso: cortar laterais
+                    new_w = int(round(h * target_ratio))
+                    left = max(0, (w - new_w) // 2)
+                    box = (left, 0, min(w, left + new_w), h)
+                else:
+                    # Altura em excesso: cortar topo/base
+                    new_h = int(round(w / target_ratio))
+                    top = max(0, (h - new_h) // 2)
+                    box = (0, top, w, min(h, top + new_h))
+                img = img.crop(box)
+
+            # Resize para dimensões exatas
+            if img.size != (tw, th):
+                img = img.resize((tw, th), Image.LANCZOS)
+
+            img.save(image_path, 'JPEG', quality=95, optimize=True)
+        except Exception as e:
+            print(f"_postprocess_to_size falhou: {e}")
+
 class PexelsImageTool:
     """Ferramenta para buscar imagens no Pexels pela palavra-chave (tema).
     Requer variável de ambiente PEXELS_API_KEY.
@@ -371,11 +460,23 @@ class PexelsImageTool:
 
     @staticmethod
     def size_to_orientation(size: Optional[str]) -> str:
-        # Mapear tamanho para orientação sugerida pelo Pexels
+        # Deriva orientação a partir de qualquer string WxH (ex.: 1080x1350)
         s = (size or "").strip().lower()
-        if s in {"1024x1536", "1080x1440", "720x1280"}:
+        try:
+            parts = s.split('x')
+            if len(parts) == 2:
+                w, h = int(parts[0]), int(parts[1])
+                if h > w:
+                    return "portrait"
+                if w > h:
+                    return "landscape"
+                return "square"
+        except Exception:
+            pass
+        # Fallback: tentar inferir por palavras-chave
+        if any(k in s for k in ["portrait", "vertical"]):
             return "portrait"
-        if s in {"1536x1024", "1920x1080", "1280x720"}:
+        if any(k in s for k in ["landscape", "horizontal"]):
             return "landscape"
         return "square"
 
