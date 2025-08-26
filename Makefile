@@ -24,7 +24,7 @@ lint:
 
 test:
 	@echo "[test] Executando testes (se existirem)..."
-	@pytest -q || true
+	@pytest -q
 
 dev:
 	@echo "[dev] Subindo backend FastAPI em http://$(HOST):$(PORT) ..."
