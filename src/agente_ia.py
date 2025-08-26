@@ -5,14 +5,16 @@ Versão experimental que usa Agno como base principal do projeto.
 
 import os
 import json
+import asyncio
 import requests
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
 from PIL import Image
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import httpx
 
 from dotenv import load_dotenv
 from src.logger import get_logger
@@ -156,8 +158,8 @@ class ImageGeneratorTool:
     
     def __init__(self, image_size: Optional[str] = None):
         self.name = "image_generator"
-        # Cliente OpenAI (lê OPENAI_API_KEY do ambiente)
-        self.client = OpenAI()
+        # Cliente OpenAI assíncrono (lê OPENAI_API_KEY do ambiente)
+        self.client = AsyncOpenAI()
         # Permitir configurar o modelo via variável de ambiente
         # Preferência: gpt-image-1; fallback automático para dall-e-3 se necessário
         self.image_model = os.getenv('IMAGE_MODEL', 'gpt-image-1')
@@ -170,7 +172,7 @@ class ImageGeneratorTool:
 =======
         self.image_size = image_size or os.getenv('IMAGE_SIZE', '1024x1024')
     
-    def generate_image(self, titulo: str, elementos: List[str] = None, estilo_imagem: str = "realista", save_to_temp: bool = True, size: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    async def generate_image(self, titulo: str, elementos: List[str] = None, estilo_imagem: str = "realista", save_to_temp: bool = True, size: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Gera uma imagem baseada no título e elementos do conteúdo
         
@@ -216,7 +218,7 @@ class ImageGeneratorTool:
                 extra_args = {}
                 if model_to_use == 'gpt-image-1':
                     extra_args["response_format"] = "b64_json"
-                response = self.client.images.generate(
+                response = await self.client.images.generate(
                     model=model_to_use,
                     prompt=prompt,
                     size=size_to_use,
@@ -229,6 +231,13 @@ class ImageGeneratorTool:
                 logger.error("Erro com %s: %s", model_to_use, err_msg)
                 if model_to_use == 'gpt-image-1':
                     logger.info("Tentando fallback para dall-e-3...")
+                    # Ajustar tamanho permitido para dall-e-3
+                    allowed_dalle3 = {"1024x1024", "1024x1792", "1792x1024"}
+                    size_for_dalle3 = (size or self.image_size)
+                    size_for_dalle3 = size_for_dalle3 if size_for_dalle3 in allowed_dalle3 else "1792x1024"
+                    # Para dall-e-3, manter padrão (normalmente retorna URL)
+                    response = await self.client.images.generate(
+=======
                     allowed_sizes = allowed_dalle3
                     default_size = self.image_size if self.image_size in allowed_sizes else _smallest_size(allowed_sizes)
                     size_for_dalle3 = size or default_size
@@ -252,10 +261,10 @@ class ImageGeneratorTool:
             # Definir diretório de saída (temporário por padrão)
             output_dir = "output/tmp" if save_to_temp else "output"
             if hasattr(data0, 'b64_json') and data0.b64_json:
-                image_path = self._save_b64_image(data0.b64_json, titulo, output_dir=output_dir)
+                image_path = await self._save_b64_image(data0.b64_json, titulo, output_dir=output_dir)
             elif hasattr(data0, 'url') and data0.url:
                 image_url = data0.url
-                image_path = self._download_and_save_image(image_url, titulo, output_dir=output_dir)
+                image_path = await self._download_and_save_image(image_url, titulo, output_dir=output_dir)
             else:
                 raise ValueError("Resposta da API de imagens sem b64_json ou url")
 
@@ -327,8 +336,107 @@ class ImageGeneratorTool:
             f" Estilo: {style_keywords}. "
             f"Manter aparência científica/realista, iluminação equilibrada, ruído mínimo e alta nitidez."
         )
-        
+
         return base_prompt + technical_guidelines
+
+    async def _download_and_save_image(self, image_url: str, titulo: str, output_dir: str = "output") -> str:
+        """Baixa e salva a imagem gerada localmente."""
+        try:
+            os.makedirs(output_dir, exist_ok=True)
+
+            import re
+            filename = re.sub(r'[^\w\s-]', '', titulo)
+            filename = filename.replace(' ', '_').replace('-', '_')
+            filename = filename[:50] if len(filename) > 50 else filename
+            filename = f"{filename}_image.jpg"
+            filepath = os.path.join(output_dir, filename)
+
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(image_url)
+                response.raise_for_status()
+                content = response.content
+
+            if len(content) == 0:
+                raise Exception("Conteúdo da imagem vazio")
+
+            logger.info("Tamanho do conteúdo baixado: %d bytes", len(content))
+
+            from io import BytesIO
+
+            async def _process() -> None:
+                image = Image.open(BytesIO(content))
+                logger.info("Imagem aberta: %s, modo: %s", image.size, image.mode)
+                if image.mode in ('RGBA', 'LA', 'P'):
+                    logger.info("Convertendo imagem para RGB...")
+                    background = Image.new('RGB', image.size, (255, 255, 255))
+                    if image.mode == 'P':
+                        image_rgb = image.convert('RGBA')
+                    else:
+                        image_rgb = image
+                    if image_rgb.mode == 'RGBA':
+                        background.paste(image_rgb, mask=image_rgb.split()[-1])
+                    else:
+                        background.paste(image_rgb)
+                    image_final = background
+                elif image.mode != 'RGB':
+                    logger.info("Convertendo de %s para RGB...", image.mode)
+                    image_final = image.convert('RGB')
+                else:
+                    image_final = image
+                image_final.save(filepath, 'JPEG', quality=95, optimize=True)
+                if os.path.exists(filepath):
+                    file_size = os.path.getsize(filepath)
+                    logger.info("Arquivo salvo com %d bytes", file_size)
+                    if file_size == 0:
+                        raise Exception("Arquivo salvo com 0 bytes")
+
+            await asyncio.to_thread(_process)
+
+            return filepath
+        except Exception as e:
+            logger.error("Erro ao salvar imagem (base64): %s", e)
+            raise
+
+    async def _save_b64_image(self, b64_data: str, titulo: str, output_dir: str = "output") -> str:
+        """Salva imagem a partir de base64 JSON retornado pela API."""
+        try:
+            import re
+            import base64
+            from io import BytesIO
+            os.makedirs(output_dir, exist_ok=True)
+            filename = re.sub(r'[^\w\s-]', '', titulo)
+            filename = filename.replace(' ', '_').replace('-', '_')
+            filename = filename[:50] if len(filename) > 50 else filename
+            filename = f"{filename}_image.jpg"
+            filepath = os.path.join(output_dir, filename)
+
+            img_bytes = base64.b64decode(b64_data)
+
+            async def _process() -> None:
+                image = Image.open(BytesIO(img_bytes))
+                if image.mode in ('RGBA', 'LA', 'P'):
+                    background = Image.new('RGB', image.size, (255, 255, 255))
+                    if image.mode == 'P':
+                        image = image.convert('RGBA')
+                    if image.mode == 'RGBA':
+                        background.paste(image, mask=image.split()[-1])
+                    else:
+                        background.paste(image)
+                    final_img = background
+                elif image.mode != 'RGB':
+                    final_img = image.convert('RGB')
+                else:
+                    final_img = image
+                final_img.save(filepath, 'JPEG', quality=95, optimize=True)
+                if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
+                    raise Exception('Falha ao salvar a imagem em disco')
+
+            await asyncio.to_thread(_process)
+
+            return filepath
+        except Exception as e:
+            logger.error("Erro ao salvar imagem (b64): %s", e)
+            raise
 
 class PexelsImageTool:
     """Ferramenta para buscar imagens no Pexels pela palavra-chave (tema).
@@ -383,7 +491,7 @@ class PexelsImageTool:
             return {"error": "Imagem do Pexels sem URL utilizável."}
 
         # Baixar e salvar localmente no mesmo padrão de outras imagens
-        local_path = ImageGeneratorTool()._download_and_save_image(url, titulo=tema, output_dir="output/tmp")
+        local_path = asyncio.run(ImageGeneratorTool()._download_and_save_image(url, titulo=tema, output_dir="output/tmp"))
         import os as _os
         filename = _os.path.basename(local_path)
         public_url = f"/temp/{filename}"
@@ -401,6 +509,7 @@ class PexelsImageTool:
             "tamanho": size or "",
             "data_geracao": datetime.now().isoformat(),
         }
+=======
     
     def _download_and_save_image(self, image_url: str, titulo: str, output_dir: str = "output") -> str:
         """
@@ -516,7 +625,6 @@ class PexelsImageTool:
         except Exception as e:
             logger.error("Erro ao salvar imagem (b64): %s", e)
             raise
-
 class ContentGeneratorAgent:
     """Agente especializado em geração de conteúdo estruturado"""
     
@@ -589,15 +697,39 @@ class ContentGeneratorAgent:
         Retorne APENAS o JSON, sem texto adicional.
         """
         
-        # Gerar resposta usando OpenAI diretamente
-        response = self.client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "Você é um especialista em criação de conteúdo estruturado. Analise informações de múltiplas fontes e crie textos bem organizados. Inclua fontes somente se forem reais e verificáveis; não invente fontes. Retorne apenas JSON válido com as chaves: titulo, subtitulo, conteudo. Não inclua rótulos textuais (como 'Título:', 'Subtítulo:' ou 'Conteúdo:') dentro dos valores."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7
-        )
+        async def _generate() -> tuple[Any, Optional[Dict[str, Any]]]:
+            text_future = asyncio.to_thread(
+                self.client.chat.completions.create,
+                model="gpt-3.5-turbo",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Você é um especialista em criação de conteúdo estruturado. Analise informações de múltiplas fontes e crie textos bem organizados. Inclua fontes somente se forem reais e verificáveis; não invente fontes. Retorne apenas JSON válido com as chaves: titulo, subtitulo, conteudo. Não inclua rótulos textuais (como 'Título:', 'Subtítulo:' ou 'Conteúdo:') dentro dos valores."
+                        ),
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.7,
+            )
+            if generate_image:
+                image_call = self.image_generator.generate_image(
+                    titulo=tema,
+                    elementos=[tema],
+                    estilo_imagem=estilo_imagem,
+                    size=tamanho,
+                )
+                if asyncio.iscoroutine(image_call):
+                    resp, img = await asyncio.gather(text_future, image_call)
+                else:
+                    resp = await text_future
+                    img = image_call
+            else:
+                resp = await text_future
+                img = None
+            return resp, img
+
+        response, image_data = asyncio.run(_generate())
         
         try:
             # Tentar parsear como JSON
@@ -630,16 +762,6 @@ class ContentGeneratorAgent:
                 content_data['titulo'] = _clean_value(str(content_data.get('titulo', '')))
                 content_data['subtitulo'] = _clean_value(str(content_data.get('subtitulo', '')))
                 content_data['conteudo'] = _clean_value(str(content_data.get('conteudo', '')))
-                image_data = None
-                if generate_image:
-                    # Gerar imagem baseada no título
-                    logger.info("Gerando imagem para o conteúdo...")
-                    image_data = self.image_generator.generate_image(
-                        titulo=content_data['titulo'],
-                        elementos=[tema],
-                        estilo_imagem=estilo_imagem,
-                        size=tamanho
-                    )
                 
                 # Adicionar metadados
                 content_data['fontes'] = [

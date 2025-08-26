@@ -9,6 +9,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 import os
 from datetime import datetime, timedelta
 import asyncio
+import inspect
 
 from src.agente_ia import (
     ResearchWorkflow,
@@ -191,8 +192,10 @@ async def generate(req: GenerateRequest, request: Request):
                     elementos=elementos,
                     estilo_imagem=req.estilo_imagem,
                     save_to_temp=True,
-                    size=req.tamanho
+                    size=req.tamanho,
                 )
+                if inspect.isawaitable(new_img):
+                    new_img = asyncio.run(new_img)
                 if isinstance(new_img, dict) and new_img.get("local_path"):
                     content["imagem"] = new_img
                     img = new_img
@@ -330,8 +333,10 @@ async def regenerate_image(req: RegenerateImageRequest, request: Request):
                     elementos=elementos,
                     estilo_imagem=req.estilo_imagem,
                     save_to_temp=True,
-                    size=req.tamanho
+                    size=req.tamanho,
                 )
+                if inspect.isawaitable(img):
+                    img = asyncio.run(img)
             if img and isinstance(img, dict) and img.get("local_path"):
                 # Se já veio com public_url de /temp, mantenha; senão, caia em /output
                 if not img.get("public_url"):
@@ -390,8 +395,10 @@ async def generate_image(req: GenerateImageRequest, request: Request):
                     elementos=elementos,
                     estilo_imagem=req.estilo_imagem,
                     save_to_temp=True,
-                    size=req.tamanho
+                    size=req.tamanho,
                 )
+                if inspect.isawaitable(img):
+                    img = asyncio.run(img)
             if img and img.get("local_path"):
                 if not img.get("public_url"):
                     filename = os.path.basename(img["local_path"])
