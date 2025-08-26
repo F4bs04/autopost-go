@@ -240,7 +240,8 @@ class ImageGeneratorTool:
             _filename = _os.path.basename(image_path) if image_path else None
             public_url = None
             if _filename:
-                public_url = f"/temp/{_filename}" if save_to_temp else f"/output/{_filename}"
+                # Normaliza: quando salvo em tmp, expor via /output/tmp/<arquivo>
+                public_url = f"/output/tmp/{_filename}" if save_to_temp else f"/output/{_filename}"
 
             result = {
                 'url': image_url,

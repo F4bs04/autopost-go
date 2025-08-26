@@ -196,8 +196,10 @@ async def generate(req: GenerateRequest, request: Request):
             if not img.get("public_url"):
                 local_path = img["local_path"]
                 filename = os.path.basename(local_path)
-                # Por padrão, expõe via /output
-                img["public_url"] = f"/output/{filename}"
+                norm = os.path.normpath(local_path).replace("\\", "/")
+                is_tmp = "/output/tmp/" in norm or norm.endswith("/output/tmp/" + filename) or "/output/tmp" in norm
+                rel = f"tmp/{filename}" if is_tmp else filename
+                img["public_url"] = f"/output/{rel}"
             # Construir URL absoluta para evitar problemas de CORS em clientes externos
             try:
                 base = str(request.base_url).rstrip('/')
@@ -327,7 +329,10 @@ async def regenerate_image(req: RegenerateImageRequest, request: Request):
                 # Se já veio com public_url de /temp, mantenha; senão, caia em /output
                 if not img.get("public_url"):
                     filename = os.path.basename(img["local_path"])
-                    img["public_url"] = f"/output/{filename}"
+                    norm = os.path.normpath(img["local_path"]).replace("\\", "/")
+                    is_tmp = "/output/tmp/" in norm or norm.endswith("/output/tmp/" + filename) or "/output/tmp" in norm
+                    rel = f"tmp/{filename}" if is_tmp else filename
+                    img["public_url"] = f"/output/{rel}"
                 # Adiciona URL absoluta
                 try:
                     base = str(request.base_url).rstrip('/')
@@ -385,8 +390,12 @@ async def generate_image(req: GenerateImageRequest, request: Request):
                 )
             if img and img.get("local_path"):
                 if not img.get("public_url"):
-                    filename = os.path.basename(img["local_path"])
-                    img["public_url"] = f"/output/{filename}"
+                    local_path = img["local_path"]
+                    filename = os.path.basename(local_path)
+                    norm = os.path.normpath(local_path).replace("\\", "/")
+                    is_tmp = "/output/tmp/" in norm or norm.endswith("/output/tmp/" + filename) or "/output/tmp" in norm
+                    rel = f"tmp/{filename}" if is_tmp else filename
+                    img["public_url"] = f"/output/{rel}"
                 try:
                     base = str(request.base_url).rstrip('/')
                     rel = img.get("public_url", "")
@@ -421,8 +430,12 @@ async def generate_pexels_image(req: GenerateImageRequest, request: Request):
             if img and isinstance(img, dict) and img.get("local_path"):
                 # Garante public_url/absolute_public_url/url normalizados
                 if not img.get("public_url"):
-                    filename = os.path.basename(img["local_path"])
-                    img["public_url"] = f"/output/{filename}"
+                    local_path = img["local_path"]
+                    filename = os.path.basename(local_path)
+                    norm = os.path.normpath(local_path).replace("\\", "/")
+                    is_tmp = "/output/tmp/" in norm or norm.endswith("/output/tmp/" + filename) or "/output/tmp" in norm
+                    rel = f"tmp/{filename}" if is_tmp else filename
+                    img["public_url"] = f"/output/{rel}"
                 try:
                     base = str(request.base_url).rstrip('/')
                     rel = img.get("public_url", "")
