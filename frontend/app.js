@@ -14,6 +14,13 @@ const conteudo = document.getElementById('conteudo');
 const fontes = document.getElementById('fontes');
 const btnRegerarTexto = document.getElementById('btnRegerarTexto');
 const btnRegerarImagem = document.getElementById('btnRegerarImagem');
+// Novos elementos do card de imagem
+const temaImagem = document.getElementById('temaImagem');
+const estiloImagemCard = document.getElementById('estiloImagemCard');
+const formatoImagemCard = document.getElementById('formatoImagemCard');
+const btnGerarImagemCard = document.getElementById('btnGerarImagemCard');
+const statusCard = document.getElementById('statusCard');
+const imgTemaCard = document.getElementById('imgTemaCard');
 
 function escapeHTML(str) {
   return (str || '')
@@ -22,6 +29,14 @@ function escapeHTML(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function setLoadingCard(loading, msg = '') {
+  if (btnGerarImagemCard) btnGerarImagemCard.disabled = loading;
+  if (temaImagem) temaImagem.disabled = loading;
+  if (estiloImagemCard) estiloImagemCard.disabled = loading;
+  if (formatoImagemCard) formatoImagemCard.disabled = loading;
+  if (statusCard) statusCard.textContent = msg;
 }
 
 function mapImageErrorMessage(err) {
@@ -259,3 +274,70 @@ async function regerarImagem() {
 
 if (btnRegerarTexto) btnRegerarTexto.addEventListener('click', regerarTexto);
 if (btnRegerarImagem) btnRegerarImagem.addEventListener('click', regerarImagem);
+
+// --- Card de imagem: gerar imagem com texto do tema como título entre aspas ---
+function mapFormatoToApiSize(value) {
+  // Mapeia formatos da UI para tamanhos suportados pelos modelos
+  // gpt-image-1: 1024x1024, 1024x1536 (retrato), 1536x1024 (paisagem)
+  // dall-e-3: 1024x1024, 1024x1792 (retrato), 1792x1024 (paisagem)
+  switch ((value || '').trim()) {
+    case '1440x1080':
+      return '1024x1536'; // retrato compatível
+    case '1920x1080':
+      return '1024x1792'; // retrato alto (para fallback no dall-e-3)
+    case '1080x1080':
+    default:
+      return '1024x1024'; // quadrado
+  }
+}
+
+async function gerarImagemCard() {
+  const temaTxt = (temaImagem && temaImagem.value || '').trim();
+  const estilo = (estiloImagemCard && estiloImagemCard.value) || 'realista';
+  const formato = (formatoImagemCard && formatoImagemCard.value) || '1080x1080';
+  if (!temaTxt) {
+    if (statusCard) statusCard.textContent = 'Digite um tema para gerar a imagem';
+    if (temaImagem) temaImagem.focus();
+    return;
+  }
+  const tamanho = mapFormatoToApiSize(formato);
+  setLoadingCard(true, 'Gerando imagem do card...');
+  try {
+    const resp = await fetch(`${API_BASE}/api/regenerate-image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        titulo: temaTxt, // usado como texto a ser incluído na imagem
+        tema: temaTxt,   // também envia como elemento
+        estilo_imagem: estilo,
+        tamanho
+      })
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`Erro ${resp.status}: ${text}`);
+    }
+    const data = await resp.json();
+    if (data && data.error) {
+      if (imgTemaCard) {
+        imgTemaCard.removeAttribute('src');
+        imgTemaCard.alt = 'Imagem não disponível';
+      }
+      if (statusCard) statusCard.textContent = mapImageErrorMessage(data.error);
+      throw new Error(data.error);
+    }
+    const image = (data && data.imagem) || {};
+    const publicUrl = image.absolute_public_url || image.public_url || image.local_path || '';
+    if (publicUrl && imgTemaCard) {
+      imgTemaCard.src = publicUrl;
+      imgTemaCard.alt = temaTxt;
+    }
+    setLoadingCard(false, 'Imagem gerada!');
+  } catch (err) {
+    const errorMsg = handleFetchError(err, 'geração de imagem do card');
+    setLoadingCard(false, errorMsg);
+  }
+}
+
+if (btnGerarImagemCard) btnGerarImagemCard.addEventListener('click', gerarImagemCard);
+if (temaImagem) temaImagem.addEventListener('keydown', (e) => { if (e.key === 'Enter') gerarImagemCard(); });

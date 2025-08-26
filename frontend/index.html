@@ -38,6 +38,37 @@
       </div>
     </section>
 
+    <section id="card-imagem" class="chat" aria-label="Gerar imagem a partir de um tema">
+      <h2 style="margin: 0 0 12px 0;">Gerar imagem rápida</h2>
+      <div class="chat-input">
+        <input id="temaImagem" type="text" placeholder="Digite um tema (o texto será usado como título na imagem)" />
+        <div class="style-selector">
+          <label for="estiloImagemCard">Estilo:</label>
+          <select id="estiloImagemCard">
+            <option value="realista">Realista</option>
+            <option value="ilustracao">Ilustração</option>
+            <option value="abstrato">Abstrato</option>
+            <option value="criativo">Criativo</option>
+          </select>
+        </div>
+        <div class="style-selector">
+          <label for="formatoImagemCard">Formato:</label>
+          <select id="formatoImagemCard">
+            <option value="1440x1080">1440h px x 1080w px (retrato)</option>
+            <option value="1920x1080">1920h px x 1080w px (retrato)</option>
+            <option value="1080x1080">1080h px x 1080w px (quadrado)</option>
+          </select>
+        </div>
+        <button id="btnGerarImagemCard" type="button">Gerar imagem do card</button>
+      </div>
+      <div id="statusCard" class="status" aria-live="polite"></div>
+      <div class="card" style="margin-top:12px;">
+        <div class="card-image">
+          <img id="imgTemaCard" alt="Preview da imagem gerada" />
+        </div>
+      </div>
+    </section>
+
     <section id="resultado" class="resultado hidden">
       <div class="card">
         <div class="card-image">

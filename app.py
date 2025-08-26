@@ -98,6 +98,7 @@ class GenerateRequest(BaseModel):
     tema: str
     gerar_imagem: Optional[bool] = True
     estilo_imagem: Optional[str] = "realista"
+    tamanho: Optional[str] = None
     
     class Config:
         schema_extra = {
@@ -162,15 +163,34 @@ async def generate(req: GenerateRequest, request: Request):
         workflow = ResearchWorkflow()
 
         def run_workflow():
-            result = workflow.run(req.tema, generate_image=req.gerar_imagem, estilo_imagem=req.estilo_imagem)
+            result = workflow.run(req.tema, generate_image=req.gerar_imagem, estilo_imagem=req.estilo_imagem, tamanho=req.tamanho)
             workflow.save_results(result)
             return result
 
         result = await run_in_threadpool(run_workflow)
 
-        # Ajustar caminho da imagem para ser acessível publicamente
+        # Garantir imagem: se solicitada e ausente, tenta gerar agora
         content = result.get("conteudo", {})
         img = content.get("imagem")
+        if req.gerar_imagem and (not img or not isinstance(img, dict) or not img.get("local_path")):
+            try:
+                elementos = [result.get("tema")] if result.get("tema") else None
+                tool = ImageGeneratorTool()
+                new_img = tool.generate_image(
+                    titulo=content.get("titulo") or result.get("tema") or "imagem",
+                    elementos=elementos,
+                    estilo_imagem=req.estilo_imagem,
+                    save_to_temp=True,
+                    size=req.tamanho
+                )
+                if isinstance(new_img, dict) and new_img.get("local_path"):
+                    content["imagem"] = new_img
+                    img = new_img
+                elif isinstance(new_img, dict) and new_img.get("error"):
+                    content["imagem_error"] = new_img.get("error")
+            except Exception as _e:
+                content["imagem_error"] = str(_e)
+
         if img and img.get("local_path"):
             # Se o gerador já definiu public_url (ex.: /temp/...), manter
             if not img.get("public_url"):
@@ -229,6 +249,7 @@ class RegenerateImageRequest(BaseModel):
     titulo: str
     tema: Optional[str] = None
     estilo_imagem: Optional[str] = "realista"
+    tamanho: Optional[str] = None
     
     class Config:
         schema_extra = {
@@ -290,7 +311,8 @@ async def regenerate_image(req: RegenerateImageRequest, request: Request):
                 titulo=req.titulo,
                 elementos=elementos,
                 estilo_imagem=req.estilo_imagem,
-                save_to_temp=True
+                save_to_temp=True,
+                size=req.tamanho
             )
             if img and img.get("local_path"):
                 # Se já veio com public_url de /temp, mantenha; senão, caia em /output
@@ -316,6 +338,54 @@ async def regenerate_image(req: RegenerateImageRequest, request: Request):
             return {"imagem": None, "error": "Falha ao gerar imagem. Verifique a chave OPENAI_API_KEY e permissões do modelo."}
 
         result = await run_in_threadpool(run_only_image)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar imagem: {str(e)}")
+
+
+class GenerateImageRequest(BaseModel):
+    titulo: str
+    tema: Optional[str] = None
+    estilo_imagem: Optional[str] = "realista"
+    tamanho: Optional[str] = None
+
+@app.post("/api/generate-image")
+async def generate_image(req: GenerateImageRequest, request: Request):
+    """Gera apenas a imagem a partir de um título/tema e retorna metadados da imagem.
+    O título será incluído como texto dentro da imagem (conforme prompt da ferramenta).
+    """
+    try:
+        tool = ImageGeneratorTool()
+
+        def run_generate_image():
+            elementos = [req.tema] if req.tema else None
+            img = tool.generate_image(
+                titulo=req.titulo,
+                elementos=elementos,
+                estilo_imagem=req.estilo_imagem,
+                save_to_temp=True,
+                size=req.tamanho
+            )
+            if img and img.get("local_path"):
+                if not img.get("public_url"):
+                    filename = os.path.basename(img["local_path"])
+                    img["public_url"] = f"/output/{filename}"
+                try:
+                    base = str(request.base_url).rstrip('/')
+                    rel = img.get("public_url", "")
+                    if rel.startswith('/'):
+                        img["absolute_public_url"] = f"{base}{rel}"
+                    else:
+                        img["absolute_public_url"] = rel
+                    img["url"] = img.get("absolute_public_url") or img.get("public_url")
+                except Exception:
+                    pass
+                if "url" in img and img.get("url") and img.get("absolute_public_url") and img["url"] != img["absolute_public_url"]:
+                    img["url"] = img["absolute_public_url"]
+                return {"imagem": img}
+            return {"imagem": None, "error": "Falha ao gerar imagem. Verifique a chave OPENAI_API_KEY e permissões do modelo."}
+
+        result = await run_in_threadpool(run_generate_image)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao gerar imagem: {str(e)}")

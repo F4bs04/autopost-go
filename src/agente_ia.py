@@ -163,7 +163,7 @@ class ImageGeneratorTool:
         # Para dall-e-3, tamanhos maiores são permitidos, mas podem ser mais lentos
         self.image_size = os.getenv('IMAGE_SIZE', '1536x1024')
     
-    def generate_image(self, titulo: str, elementos: List[str] = None, estilo_imagem: str = "realista", save_to_temp: bool = True) -> Optional[Dict[str, Any]]:
+    def generate_image(self, titulo: str, elementos: List[str] = None, estilo_imagem: str = "realista", save_to_temp: bool = True, size: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Gera uma imagem baseada no título e elementos do conteúdo
         
@@ -185,7 +185,7 @@ class ImageGeneratorTool:
             model_to_use = self.image_model
             # Normalizar tamanho conforme o modelo para evitar 400 + retry
             allowed_gpt_image1 = {"1024x1024", "1024x1536", "1536x1024", "auto"}
-            size_to_use = self.image_size
+            size_to_use = size or self.image_size
             if model_to_use == 'gpt-image-1' and size_to_use not in allowed_gpt_image1:
                 size_to_use = '1536x1024'
             try:
@@ -208,7 +208,8 @@ class ImageGeneratorTool:
                     print("Tentando fallback para dall-e-3...")
                     # Ajustar tamanho permitido para dall-e-3
                     allowed_dalle3 = {"1024x1024", "1024x1792", "1792x1024"}
-                    size_for_dalle3 = self.image_size if self.image_size in allowed_dalle3 else "1792x1024"
+                    size_for_dalle3 = (size or self.image_size)
+                    size_for_dalle3 = size_for_dalle3 if size_for_dalle3 in allowed_dalle3 else "1792x1024"
                     # Para dall-e-3, manter padrão (normalmente retorna URL)
                     response = self.client.images.generate(
                         model='dall-e-3',
@@ -247,7 +248,7 @@ class ImageGeneratorTool:
                 'public_url': public_url,
                 'prompt_usado': prompt,
                 'modelo': model_to_use,
-                'tamanho': self.image_size,
+                'tamanho': size_to_use,
                 'data_geracao': datetime.now().isoformat()
             }
             print(f"Imagem gerada e salva: {result}")
@@ -279,8 +280,13 @@ class ImageGeneratorTool:
             "criativo": "arte criativa, imaginativo, surreal, único, experimental, artístico, inovador"
         }
         
-        # Template base adaptado para incluir estilo
-        base_prompt = f"Gere uma imagem sobre esse tema #{titulo} que represente esses elementos de forma informativa, seja cuidadoso com os detalhes e evite aberrações, faça com que a imagem seja interessante e humanizada."
+        # Template base adaptado para incluir estilo e o título como texto dentro da imagem
+        base_prompt = (
+            f"Gere uma imagem sobre esse tema #{titulo} que represente esses elementos de forma informativa, "
+            f"seja cuidadoso com os detalhes e evite aberrações, faça com que a imagem seja interessante e humanizada. "
+            f"Inclua obrigatoriamente o texto do título visível e legível dentro da imagem, escrito exatamente assim: \"{titulo}\". "
+            f"Garanta alto contraste e boa legibilidade do texto sobre o fundo."
+        )
         
         # Adicionar elementos específicos se fornecidos
         if elementos and len(elementos) > 0:
@@ -415,7 +421,7 @@ class ContentGeneratorAgent:
         self.image_generator = ImageGeneratorTool()
         self.client = OpenAI()
     
-    def generate_structured_content(self, tema: str, generate_image: bool = True, estilo_imagem: str = "realista") -> Dict[str, Any]:
+    def generate_structured_content(self, tema: str, generate_image: bool = True, estilo_imagem: str = "realista", tamanho: Optional[str] = None) -> Dict[str, Any]:
         """
         Gera conteúdo estruturado sobre um tema específico
         
@@ -527,7 +533,8 @@ class ContentGeneratorAgent:
                     image_data = self.image_generator.generate_image(
                         titulo=content_data['titulo'],
                         elementos=[tema],
-                        estilo_imagem=estilo_imagem
+                        estilo_imagem=estilo_imagem,
+                        size=tamanho
                     )
                 
                 # Adicionar metadados
@@ -589,7 +596,7 @@ class ResearchWorkflow:
         # Inicializar agente
         self.content_agent = ContentGeneratorAgent()
     
-    def run(self, tema: str, generate_image: bool = True, estilo_imagem: str = "realista") -> Dict[str, Any]:
+    def run(self, tema: str, generate_image: bool = True, estilo_imagem: str = "realista", tamanho: Optional[str] = None) -> Dict[str, Any]:
         """
         Executa o workflow completo
         
@@ -604,7 +611,7 @@ class ResearchWorkflow:
         print(f"Iniciando pesquisa sobre: {tema}")
         
         # Gerar conteúdo estruturado
-        content_data = self.content_agent.generate_structured_content(tema, generate_image=generate_image, estilo_imagem=estilo_imagem)
+        content_data = self.content_agent.generate_structured_content(tema, generate_image=generate_image, estilo_imagem=estilo_imagem, tamanho=tamanho)
         
         # Adicionar metadados do workflow
         result = {
