@@ -19,6 +19,7 @@ const temaImagem = document.getElementById('temaImagem');
 const estiloImagemCard = document.getElementById('estiloImagemCard');
 const formatoImagemCard = document.getElementById('formatoImagemCard');
 const btnGerarImagemCard = document.getElementById('btnGerarImagemCard');
+const fonteImagemCard = document.getElementById('fonteImagemCard');
 const statusCard = document.getElementById('statusCard');
 const imgTemaCard = document.getElementById('imgTemaCard');
 
@@ -301,16 +302,19 @@ async function gerarImagemCard() {
     return;
   }
   const tamanho = mapFormatoToApiSize(formato);
+  const fonte = (fonteImagemCard && fonteImagemCard.value) || 'openai';
   setLoadingCard(true, 'Gerando imagem do card...');
   try {
-    const resp = await fetch(`${API_BASE}/api/regenerate-image`, {
+    const endpoint = fonte === 'pexels' ? '/api/generate-image' : '/api/regenerate-image';
+    const resp = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         titulo: temaTxt, // usado como texto a ser incluído na imagem
-        tema: temaTxt,   // também envia como elemento
+        tema: temaTxt,   // também envia como elemento/consulta
         estilo_imagem: estilo,
-        tamanho
+        tamanho,
+        fonte
       })
     });
     if (!resp.ok) {

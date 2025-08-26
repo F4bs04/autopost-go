@@ -10,7 +10,7 @@ import os
 from datetime import datetime, timedelta
 import asyncio
 
-from src.agente_ia import ResearchWorkflow, ContentGeneratorAgent, ImageGeneratorTool
+from src.agente_ia import ResearchWorkflow, ContentGeneratorAgent, ImageGeneratorTool, PexelsImageTool
 
 app = FastAPI(
     title="Clio Agent API",
@@ -250,6 +250,7 @@ class RegenerateImageRequest(BaseModel):
     tema: Optional[str] = None
     estilo_imagem: Optional[str] = "realista"
     tamanho: Optional[str] = None
+    fonte: Optional[str] = "openai"  # 'openai' | 'pexels'
     
     class Config:
         schema_extra = {
@@ -303,18 +304,26 @@ async def regenerate_text(req: RegenerateTextRequest):
 async def regenerate_image(req: RegenerateImageRequest, request: Request):
     """Regenera apenas a imagem a partir do título (opcionalmente usando o tema como elemento)."""
     try:
-        tool = ImageGeneratorTool()
+        # Decide fonte
+        fonte = (req.fonte or "openai").lower()
+        tool = ImageGeneratorTool() if fonte == "openai" else None
 
         def run_only_image():
-            elementos = [req.tema] if req.tema else None
-            img = tool.generate_image(
-                titulo=req.titulo,
-                elementos=elementos,
-                estilo_imagem=req.estilo_imagem,
-                save_to_temp=True,
-                size=req.tamanho
-            )
-            if img and img.get("local_path"):
+            if fonte == "pexels":
+                # Usa tema se houver, senão cai para título como consulta
+                query = req.tema or req.titulo
+                ptool = PexelsImageTool()
+                img = ptool.fetch_image(tema=query, size=req.tamanho)
+            else:
+                elementos = [req.tema] if req.tema else None
+                img = tool.generate_image(
+                    titulo=req.titulo,
+                    elementos=elementos,
+                    estilo_imagem=req.estilo_imagem,
+                    save_to_temp=True,
+                    size=req.tamanho
+                )
+            if img and isinstance(img, dict) and img.get("local_path"):
                 # Se já veio com public_url de /temp, mantenha; senão, caia em /output
                 if not img.get("public_url"):
                     filename = os.path.basename(img["local_path"])
@@ -348,6 +357,7 @@ class GenerateImageRequest(BaseModel):
     tema: Optional[str] = None
     estilo_imagem: Optional[str] = "realista"
     tamanho: Optional[str] = None
+    fonte: Optional[str] = "openai"
 
 @app.post("/api/generate-image")
 async def generate_image(req: GenerateImageRequest, request: Request):
@@ -355,17 +365,24 @@ async def generate_image(req: GenerateImageRequest, request: Request):
     O título será incluído como texto dentro da imagem (conforme prompt da ferramenta).
     """
     try:
-        tool = ImageGeneratorTool()
+        # Decide fonte
+        fonte = (req.fonte or "openai").lower()
+        tool = ImageGeneratorTool() if fonte == "openai" else None
 
         def run_generate_image():
-            elementos = [req.tema] if req.tema else None
-            img = tool.generate_image(
-                titulo=req.titulo,
-                elementos=elementos,
-                estilo_imagem=req.estilo_imagem,
-                save_to_temp=True,
-                size=req.tamanho
-            )
+            if fonte == "pexels":
+                query = req.tema or req.titulo
+                ptool = PexelsImageTool()
+                img = ptool.fetch_image(tema=query, size=req.tamanho)
+            else:
+                elementos = [req.tema] if req.tema else None
+                img = tool.generate_image(
+                    titulo=req.titulo,
+                    elementos=elementos,
+                    estilo_imagem=req.estilo_imagem,
+                    save_to_temp=True,
+                    size=req.tamanho
+                )
             if img and img.get("local_path"):
                 if not img.get("public_url"):
                     filename = os.path.basename(img["local_path"])

@@ -286,6 +286,7 @@ class ImageGeneratorTool:
             f"A imagem deve ter um OVERLAY na parte INFERIOR (faixa/banda) com sombra/gradiente escuro semi-transparente, "
             f"e sobre esse overlay posicione o texto do TÍTULO de forma centralizada e altamente legível. "
             f"O texto deve ser exatamente o seguinte, entre parênteses: (" + titulo + "). "
+            f"Todo o texto inserido DEVE estar em português do Brasil (pt-BR), incluindo o título. "
             f"Use tipografia forte, alto contraste e garanta legibilidade do texto sobre o overlay com sombra. "
             f"Evite posicionar texto nas bordas externas; utilize margens seguras. "
             f"O enquadramento deve ser adequado para redes sociais, com composição limpa e profissional."
@@ -304,6 +305,78 @@ class ImageGeneratorTool:
         )
         
         return base_prompt + technical_guidelines
+
+class PexelsImageTool:
+    """Ferramenta para buscar imagens no Pexels pela palavra-chave (tema).
+    Requer variável de ambiente PEXELS_API_KEY.
+    """
+    BASE_URL = "https://api.pexels.com/v1/search"
+
+    def __init__(self):
+        self.api_key = os.getenv("PEXELS_API_KEY")
+        if not self.api_key:
+            raise Exception("PEXELS_API_KEY não configurada no ambiente")
+
+    @staticmethod
+    def size_to_orientation(size: Optional[str]) -> str:
+        # Mapear tamanho para orientação sugerida pelo Pexels
+        s = (size or "").strip().lower()
+        if s in {"1024x1536", "1080x1440", "720x1280"}:
+            return "portrait"
+        if s in {"1536x1024", "1920x1080", "1280x720"}:
+            return "landscape"
+        return "square"
+
+    def fetch_image(self, tema: str, size: Optional[str] = None, per_page: int = 1) -> Dict[str, Any]:
+        import requests as _requests
+        headers = {
+            "Authorization": self.api_key
+        }
+        params = {
+            "query": tema,
+            "per_page": max(1, min(per_page, 10)),
+            "page": 1,
+            "orientation": self.size_to_orientation(size)
+        }
+        resp = _requests.get(self.BASE_URL, headers=headers, params=params, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+        photos = data.get("photos", [])
+        if not photos:
+            return {"error": "Nenhuma imagem encontrada no Pexels para o tema informado."}
+        photo = photos[0]
+        # Selecionar a melhor variação conforme orientação
+        orient = params["orientation"]
+        src = photo.get("src", {})
+        url = src.get("large")
+        if orient == "portrait":
+            url = src.get("portrait") or src.get("large") or src.get("original")
+        elif orient == "landscape":
+            url = src.get("landscape") or src.get("large") or src.get("original")
+        else:
+            url = src.get("square") or src.get("large") or src.get("original")
+        if not url:
+            return {"error": "Imagem do Pexels sem URL utilizável."}
+
+        # Baixar e salvar localmente no mesmo padrão de outras imagens
+        local_path = ImageGeneratorTool()._download_and_save_image(url, titulo=tema, output_dir="output/tmp")
+        import os as _os
+        filename = _os.path.basename(local_path)
+        public_url = f"/temp/{filename}"
+        return {
+            "source": "pexels",
+            "local_path": local_path,
+            "public_url": public_url,
+            "absolute_public_url": None,
+            "url": url,
+            "photographer": photo.get("photographer"),
+            "photographer_url": photo.get("photographer_url"),
+            "pexels_page_url": photo.get("url"),
+            "orientation": orient,
+            "tema": tema,
+            "tamanho": size or "",
+            "data_geracao": datetime.now().isoformat(),
+        }
     
     def _download_and_save_image(self, image_url: str, titulo: str, output_dir: str = "output") -> str:
         """
