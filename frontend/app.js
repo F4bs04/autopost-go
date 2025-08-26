@@ -305,7 +305,7 @@ async function gerarImagemCard() {
   const fonte = (fonteImagemCard && fonteImagemCard.value) || 'openai';
   setLoadingCard(true, 'Gerando imagem do card...');
   try {
-    const endpoint = fonte === 'pexels' ? '/api/generate-image' : '/api/regenerate-image';
+    const endpoint = fonte === 'pexels' ? '/api/generate-pexels-image' : '/api/regenerate-image';
     const resp = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

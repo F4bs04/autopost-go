@@ -406,3 +406,43 @@ async def generate_image(req: GenerateImageRequest, request: Request):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao gerar imagem: {str(e)}")
+
+
+@app.post("/api/generate-pexels-image")
+async def generate_pexels_image(req: GenerateImageRequest, request: Request):
+    """Compat: endpoint específico para Pexels usado por alguns frontends externos.
+    Força a busca no Pexels e retorna o mesmo formato de resposta dos outros endpoints.
+    """
+    try:
+        def run_generate_pexels():
+            query = req.tema or req.titulo
+            ptool = PexelsImageTool()
+            img = ptool.fetch_image(tema=query, size=req.tamanho)
+            if img and isinstance(img, dict) and img.get("local_path"):
+                # Garante public_url/absolute_public_url/url normalizados
+                if not img.get("public_url"):
+                    filename = os.path.basename(img["local_path"])
+                    img["public_url"] = f"/output/{filename}"
+                try:
+                    base = str(request.base_url).rstrip('/')
+                    rel = img.get("public_url", "")
+                    if rel.startswith('/'):
+                        img["absolute_public_url"] = f"{base}{rel}"
+                    else:
+                        img["absolute_public_url"] = rel
+                    img["url"] = img.get("absolute_public_url") or img.get("public_url")
+                except Exception:
+                    pass
+                # Se 'url' ainda aponta para a URL externa do provedor, substitui pela absoluta local
+                if (
+                    "url" in img and img.get("url") and img.get("absolute_public_url") and
+                    img["url"] != img["absolute_public_url"]
+                ):
+                    img["url"] = img["absolute_public_url"]
+                return {"imagem": img}
+            return {"imagem": None, "error": "Falha ao gerar imagem via Pexels."}
+
+        result = await run_in_threadpool(run_generate_pexels)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar imagem (Pexels): {str(e)}")
