@@ -9,7 +9,7 @@ import os
 # Adicionar o diretório raiz ao path para importar módulos
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.agente_ia import ResearchWorkflow
+from src.workflow import ResearchWorkflow
 
 def exemplo_basico():
     """Exemplo básico de uso do agente com Agno"""
@@ -38,15 +38,15 @@ def exemplo_basico():
             workflow.save_results(resultado)
             
             # Mostrar resumo
-            print(f"Sucesso!")
+            print("Sucesso!")
             print(f"   Titulo: {resultado['conteudo']['titulo']}")
             print(f"   Fontes: {len(resultado['conteudo']['fontes'])}")
             
         except Exception as e:
             print(f"Erro ao processar '{tema}': {e}")
     
-    print(f"\nExemplo concluido!")
-    print(f"Verifique a pasta 'output/' para ver os arquivos gerados.")
+    print("\nExemplo concluido!")
+    print("Verifique a pasta 'output/' para ver os arquivos gerados.")
 
 def exemplo_tema_personalizado():
     """Exemplo com tema personalizado"""
@@ -69,7 +69,7 @@ def exemplo_tema_personalizado():
         workflow.save_results(resultado)
         
         # Mostrar detalhes
-        print(f"\n📊 RESULTADO DETALHADO:")
+        print("\n📊 RESULTADO DETALHADO:")
         print(f"   🎯 Tema: {resultado['tema']}")
         print(f"   📅 Data: {resultado['data_geracao']}")
         print(f"   📝 Título: {resultado['conteudo']['titulo']}")
@@ -78,7 +78,7 @@ def exemplo_tema_personalizado():
         print(f"   🔗 Número de fontes: {len(resultado['conteudo']['fontes'])}")
         
         # Mostrar fontes
-        print(f"\n📚 FONTES ENCONTRADAS:")
+        print("\n📚 FONTES ENCONTRADAS:")
         for i, fonte in enumerate(resultado['conteudo']['fontes'], 1):
             print(f"   {i}. {fonte['titulo'][:60]}...")
             print(f"      🔗 {fonte['link']}")
@@ -121,6 +121,6 @@ if __name__ == "__main__":
     exemplo_tema_personalizado()
     comparar_versoes()
     
-    print(f"\n✨ Todos os exemplos executados!")
-    print(f"📁 Verifique os arquivos gerados na pasta 'output/'")
-    print(f"🔍 Compare com os arquivos da versão original para ver as diferenças")
+    print("\n✨ Todos os exemplos executados!")
+    print("📁 Verifique os arquivos gerados na pasta 'output/'")
+    print("🔍 Compare com os arquivos da versão original para ver as diferenças")

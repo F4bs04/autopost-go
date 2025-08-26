@@ -10,7 +10,9 @@ import os
 from datetime import datetime, timedelta
 import asyncio
 
-from src.agente_ia import ResearchWorkflow, ContentGeneratorAgent, ImageGeneratorTool, PexelsImageTool
+from src.workflow import ResearchWorkflow
+from src.content_agent import ContentGeneratorAgent
+from src.image_generation import ImageGeneratorTool, PexelsImageTool
 
 app = FastAPI(
     title="Clio Agent API",
@@ -26,8 +28,8 @@ cleanup_task = None
 @app.on_event("startup")
 async def startup_event():
     print("🚀 Clio Agent API iniciando...")
-    print(f"📍 Health check disponível em: /api/health")
-    print(f"📚 Documentação em: /docs")
+    print("📍 Health check disponível em: /api/health")
+    print("📚 Documentação em: /docs")
     # Iniciar tarefa assíncrona para limpar imagens temporárias
     async def _cleanup_loop():
         while True:
