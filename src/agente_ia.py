@@ -306,6 +306,57 @@ class ImageGeneratorTool:
         
         return base_prompt + technical_guidelines
 
+    def _download_and_save_image(self, image_url: str, titulo: str, output_dir: str = "output") -> str:
+        """
+        Baixa uma imagem a partir de uma URL e salva como JPEG em disco.
+        Mantém o padrão de nomenclatura e compatibilidade com o restante do app.
+        """
+        try:
+            # Garantir diretório de saída
+            os.makedirs(output_dir, exist_ok=True)
+
+            # Sanitizar nome do arquivo
+            import re
+            filename = re.sub(r'[^\w\s-]', '', titulo)
+            filename = filename.replace(' ', '_').replace('-', '_')
+            filename = filename[:50] if len(filename) > 50 else filename
+            filename = f"{filename}_image.jpg"
+            filepath = os.path.join(output_dir, filename)
+
+            # Download
+            resp = requests.get(image_url, timeout=30)
+            resp.raise_for_status()
+            if not resp.content:
+                raise Exception("Conteúdo da imagem vazio")
+
+            # Abrir e converter para JPEG se necessário
+            from io import BytesIO
+            img = Image.open(BytesIO(resp.content))
+            if img.mode in ('RGBA', 'LA', 'P'):
+                bg = Image.new('RGB', img.size, (255, 255, 255))
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                if img.mode == 'RGBA':
+                    bg.paste(img, mask=img.split()[-1])
+                else:
+                    bg.paste(img)
+                img = bg
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+
+            img.save(filepath, 'JPEG', quality=95, optimize=True)
+
+            # Verificações básicas
+            if not os.path.exists(filepath):
+                raise Exception('Falha ao salvar a imagem em disco')
+            if os.path.getsize(filepath) == 0:
+                raise Exception('Arquivo salvo com 0 bytes')
+
+            return filepath
+        except Exception as e:
+            print(f"Erro ao salvar imagem (url): {e}")
+            raise
+
 class PexelsImageTool:
     """Ferramenta para buscar imagens no Pexels pela palavra-chave (tema).
     Requer variável de ambiente PEXELS_API_KEY.
