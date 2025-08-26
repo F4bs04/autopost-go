@@ -156,7 +156,7 @@ class WebSearchTool:
 class ImageGeneratorTool:
     """Ferramenta para geração de imagens usando o endpoint de imagens da OpenAI"""
     
-    def __init__(self):
+    def __init__(self, image_size: Optional[str] = None):
         self.name = "image_generator"
         # Cliente OpenAI assíncrono (lê OPENAI_API_KEY do ambiente)
         self.client = AsyncOpenAI()
@@ -167,6 +167,10 @@ class ImageGeneratorTool:
         # Para gpt-image-1, suportado: '1024x1024', '1024x1536', '1536x1024', 'auto'
         # Para dall-e-3, tamanhos maiores são permitidos, mas podem ser mais lentos
         self.image_size = os.getenv('IMAGE_SIZE', '1536x1024')
+        # Reutilizar conexões HTTP para downloads de imagens
+        self.session = requests.Session()
+=======
+        self.image_size = image_size or os.getenv('IMAGE_SIZE', '1024x1024')
     
     async def generate_image(self, titulo: str, elementos: List[str] = None, estilo_imagem: str = "realista", save_to_temp: bool = True, size: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
@@ -188,11 +192,27 @@ class ImageGeneratorTool:
             
             # Gerar imagem usando o modelo de imagens da OpenAI (sem response_format)
             model_to_use = self.image_model
-            # Normalizar tamanho conforme o modelo para evitar 400 + retry
+
+            # Conjuntos de tamanhos permitidos
             allowed_gpt_image1 = {"1024x1024", "1024x1536", "1536x1024", "auto"}
-            size_to_use = size or self.image_size
-            if model_to_use == 'gpt-image-1' and size_to_use not in allowed_gpt_image1:
-                size_to_use = '1536x1024'
+            allowed_dalle3 = {"1024x1024", "1024x1792", "1792x1024"}
+
+            def _smallest_size(sizes: set[str]) -> str:
+                numeric = [s for s in sizes if "x" in s]
+                return min(numeric, key=lambda s: int(s.split("x")[0]) * int(s.split("x")[1]))
+
+            allowed_sizes = allowed_gpt_image1 if model_to_use == 'gpt-image-1' else allowed_dalle3
+            default_size = self.image_size if self.image_size in allowed_sizes else _smallest_size(allowed_sizes)
+            size_to_use = size or default_size
+            if size_to_use not in allowed_sizes:
+                logger.warning(
+                    "Tamanho %s não suportado para %s, usando %s",
+                    size_to_use,
+                    model_to_use,
+                    _smallest_size(allowed_sizes),
+                )
+                size_to_use = _smallest_size(allowed_sizes)
+
             try:
                 # Preferir base64 no gpt-image-1 para evitar dependência de URL externa
                 extra_args = {}
@@ -217,12 +237,20 @@ class ImageGeneratorTool:
                     size_for_dalle3 = size_for_dalle3 if size_for_dalle3 in allowed_dalle3 else "1792x1024"
                     # Para dall-e-3, manter padrão (normalmente retorna URL)
                     response = await self.client.images.generate(
+=======
+                    allowed_sizes = allowed_dalle3
+                    default_size = self.image_size if self.image_size in allowed_sizes else _smallest_size(allowed_sizes)
+                    size_for_dalle3 = size or default_size
+                    if size_for_dalle3 not in allowed_sizes:
+                        size_for_dalle3 = _smallest_size(allowed_sizes)
+                    response = self.client.images.generate(
                         model='dall-e-3',
                         prompt=prompt,
                         size=size_for_dalle3,
                         n=1
                     )
                     model_to_use = 'dall-e-3'
+                    size_to_use = size_for_dalle3
                 else:
                     raise
 
@@ -481,7 +509,122 @@ class PexelsImageTool:
             "tamanho": size or "",
             "data_geracao": datetime.now().isoformat(),
         }
+=======
+    
+    def _download_and_save_image(self, image_url: str, titulo: str, output_dir: str = "output") -> str:
+        """
+        Baixa e salva a imagem gerada localmente
+        
+        Args:
+            image_url: URL da imagem gerada
+            titulo: Título para nomear o arquivo
+            output_dir: Diretório de saída
+            
+        Returns:
+            Caminho local da imagem salva
+        """
+        try:
+            # Criar diretório se não existir
+            os.makedirs(output_dir, exist_ok=True)
+            
+            # Nome do arquivo baseado no título (remover caracteres especiais)
+            import re
+            # Remover caracteres especiais e acentos
+            filename = re.sub(r'[^\w\s-]', '', titulo)
+            filename = filename.replace(' ', '_').replace('-', '_')
+            # Limitar tamanho do nome do arquivo
+            filename = filename[:50] if len(filename) > 50 else filename
+            filename = f"{filename}_image.jpg"
+            filepath = os.path.join(output_dir, filename)
+            
+            # Baixar a imagem utilizando streaming para reduzir uso de memória
+            from io import BytesIO
+            with self.session.get(image_url, stream=True, timeout=30) as response:
+                response.raise_for_status()
+                image_bytes = BytesIO()
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        image_bytes.write(chunk)
+                if image_bytes.tell() == 0:
+                    raise Exception("Conteúdo da imagem vazio")
+                logger.info(
+                    "Tamanho do conteúdo baixado: %d bytes", image_bytes.tell()
+                )
+                image_bytes.seek(0)
+                # Abrir a imagem baixada
+                image = Image.open(image_bytes)
+                logger.info("Imagem aberta: %s, modo: %s", image.size, image.mode)
+            
+            # Converter para RGB se necessário (JPEG não suporta transparência)
+            if image.mode in ('RGBA', 'LA', 'P'):
+                logger.info("Convertendo imagem para RGB...")
+                # Criar fundo branco
+                background = Image.new('RGB', image.size, (255, 255, 255))
+                if image.mode == 'P':
+                    image = image.convert('RGBA')
+                if image.mode == 'RGBA':
+                    background.paste(image, mask=image.split()[-1])
+                else:
+                    background.paste(image)
+                image = background
+            elif image.mode != 'RGB':
+                logger.info("Convertendo de %s para RGB...", image.mode)
+                image = image.convert('RGB')
+            
+            # Salvar como JPEG com qualidade alta
+            logger.info("Salvando imagem em: %s", filepath)
+            image.save(filepath, 'JPEG', quality=95, optimize=True)
+            
+            # Verificar se o arquivo foi salvo corretamente
+            if os.path.exists(filepath):
+                file_size = os.path.getsize(filepath)
+                logger.info("Arquivo salvo com %d bytes", file_size)
+                if file_size == 0:
+                    raise Exception("Arquivo salvo com 0 bytes")
+            return filepath
+        except Exception as e:
+            logger.error("Erro ao salvar imagem (base64): %s", e)
+            raise
 
+    def _save_b64_image(self, b64_data: str, titulo: str, output_dir: str = "output") -> str:
+        """Salva imagem a partir de base64 JSON retornado pela API.
+        Retorna o caminho local do arquivo salvo.
+        """
+        try:
+            import re
+            import base64
+            from io import BytesIO
+            os.makedirs(output_dir, exist_ok=True)
+            # Sanitizar nome do arquivo
+            filename = re.sub(r'[^\w\s-]', '', titulo)
+            filename = filename.replace(' ', '_').replace('-', '_')
+            filename = filename[:50] if len(filename) > 50 else filename
+            filename = f"{filename}_image.jpg"
+            filepath = os.path.join(output_dir, filename)
+
+            # Decodificar base64
+            img_bytes = base64.b64decode(b64_data)
+            image = Image.open(BytesIO(img_bytes))
+            # Converter para RGB se necessário
+            if image.mode in ('RGBA', 'LA', 'P'):
+                background = Image.new('RGB', image.size, (255, 255, 255))
+                if image.mode == 'P':
+                    image = image.convert('RGBA')
+                if image.mode == 'RGBA':
+                    background.paste(image, mask=image.split()[-1])
+                else:
+                    background.paste(image)
+                image = background
+            elif image.mode != 'RGB':
+                image = image.convert('RGB')
+
+            image.save(filepath, 'JPEG', quality=95, optimize=True)
+            if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
+                raise Exception('Falha ao salvar a imagem em disco')
+            return filepath
+        except Exception as e:
+            logger.error("Erro ao salvar imagem (b64): %s", e)
+            raise
 class ContentGeneratorAgent:
     """Agente especializado em geração de conteúdo estruturado"""
     
