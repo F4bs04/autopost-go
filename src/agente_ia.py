@@ -158,6 +158,9 @@ class ImageGeneratorTool:
         # Permitir configurar o modelo via variável de ambiente
         # Preferência: gpt-image-1; fallback automático para dall-e-3 se necessário
         self.image_model = os.getenv('IMAGE_MODEL', 'gpt-image-1')
+        # Permitir desabilitar fallback para dall-e-3 via env
+        # Por padrão, manter desabilitado para garantir consistência com gpt-image-1
+        self.disable_fallback = os.getenv('DISABLE_IMAGE_FALLBACK', 'true').strip().lower() == 'true'
         # Tamanho padrão otimizado para compatibilidade e velocidade
         # Para gpt-image-1, suportado: '1024x1024', '1024x1536', '1536x1024', 'auto'
         # Para dall-e-3, tamanhos maiores são permitidos, mas podem ser mais lentos
@@ -224,10 +227,10 @@ class ImageGeneratorTool:
                     **extra_args
                 )
             except Exception as e:
-                # Tentar fallback amplo para dall-e-3 se gpt-image-1 falhar por qualquer motivo
+                # Fallback para dall-e-3 somente se permitido
                 err_msg = str(e)
                 print(f"Erro com {model_to_use}: {err_msg}")
-                if model_to_use == 'gpt-image-1':
+                if model_to_use == 'gpt-image-1' and not self.disable_fallback:
                     print("Tentando fallback para dall-e-3...")
                     # Ajustar tamanho permitido para dall-e-3
                     allowed_dalle3 = {"1024x1024", "1024x1792", "1792x1024"}
@@ -249,6 +252,7 @@ class ImageGeneratorTool:
                     )
                     model_to_use = 'dall-e-3'
                 else:
+                    # Sem fallback: propagar para ser tratado pelo handler externo
                     raise
 
             # Tentar extrair base64; se não houver, usar URL
