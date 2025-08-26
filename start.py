@@ -13,8 +13,8 @@ if __name__ == "__main__":
     
     print(f"🚀 Iniciando servidor na porta {port}")
     print(f"🌐 Host: {host}")
-    print(f"📍 Health check: /api/health")
-    print(f"🌍 URL: autopost-go-production.up.railway.app")
+    print("📍 Health check: /api/health")
+    print("🌍 URL: autopost-go-production.up.railway.app")
     
     uvicorn.run(
         "app:app",
