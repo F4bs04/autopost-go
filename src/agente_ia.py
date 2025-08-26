@@ -15,9 +15,12 @@ from openai import OpenAI
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from dotenv import load_dotenv
+from src.logger import get_logger
 
 # Carregar variáveis de ambiente
 load_dotenv()
+
+logger = get_logger(__name__)
 
 class WebSearchTool:
     """Ferramenta personalizada para pesquisa web usando DuckDuckGo"""
@@ -103,13 +106,13 @@ class WebSearchTool:
                         })
                 
                 except Exception as e:
-                    print(f"Erro ao processar resultado individual: {e}")
+                    logger.error("Erro ao processar resultado individual: %s", e)
                     continue
             
             return results if results else self._get_fallback_data(query)
             
         except Exception as e:
-            print(f"Erro na pesquisa web: {e}")
+            logger.error("Erro na pesquisa web: %s", e)
             return self._get_fallback_data(query)
     
     def extract_content(self, url: str) -> str:
@@ -179,7 +182,7 @@ class ImageGeneratorTool:
             # Criar prompt personalizado baseado no template fornecido
             prompt = self._create_image_prompt(titulo, elementos, estilo_imagem)
             
-            print(f"Gerando imagem com prompt: {prompt[:100]}...")
+            logger.info("Gerando imagem com prompt: %s...", prompt[:100])
             
             # Gerar imagem usando o modelo de imagens da OpenAI (sem response_format)
             model_to_use = self.image_model
@@ -203,9 +206,9 @@ class ImageGeneratorTool:
             except Exception as e:
                 # Tentar fallback amplo para dall-e-3 se gpt-image-1 falhar por qualquer motivo
                 err_msg = str(e)
-                print(f"Erro com {model_to_use}: {err_msg}")
+                logger.error("Erro com %s: %s", model_to_use, err_msg)
                 if model_to_use == 'gpt-image-1':
-                    print("Tentando fallback para dall-e-3...")
+                    logger.info("Tentando fallback para dall-e-3...")
                     # Ajustar tamanho permitido para dall-e-3
                     allowed_dalle3 = {"1024x1024", "1024x1792", "1792x1024"}
                     size_for_dalle3 = (size or self.image_size)
@@ -251,13 +254,13 @@ class ImageGeneratorTool:
                 'tamanho': size_to_use,
                 'data_geracao': datetime.now().isoformat()
             }
-            print(f"Imagem gerada e salva: {result}")
+            logger.info("Imagem gerada e salva: %s", result)
             return result
-            
+
         except Exception as e:
             # Propagar mensagem de erro para a camada superior
             err = str(e)
-            print(f"Erro ao gerar imagem: {err}")
+            logger.error("Erro ao gerar imagem: %s", err)
             return {"error": err}
     
     def _create_image_prompt(self, titulo: str, elementos: List[str] = None, estilo_imagem: str = "realista") -> str:
@@ -282,14 +285,14 @@ class ImageGeneratorTool:
         
         # Construir prompt base seguindo o padrão solicitado para redes sociais
         base_prompt = (
-            f"Crie uma imagem científica ou realista que ilustre com precisão o tema proposto. "
-            f"A imagem deve ter um OVERLAY na parte INFERIOR (faixa/banda) com sombra/gradiente escuro semi-transparente, "
-            f"e sobre esse overlay posicione o texto do TÍTULO de forma centralizada e altamente legível. "
-            f"O texto deve ser exatamente o seguinte, entre parênteses: (" + titulo + "). "
-            f"Todo o texto inserido DEVE estar em português do Brasil (pt-BR), incluindo o título. "
-            f"Use tipografia forte, alto contraste e garanta legibilidade do texto sobre o overlay com sombra. "
-            f"Evite posicionar texto nas bordas externas; utilize margens seguras. "
-            f"O enquadramento deve ser adequado para redes sociais, com composição limpa e profissional."
+            "Crie uma imagem científica ou realista que ilustre com precisão o tema proposto. "
+            "A imagem deve ter um OVERLAY na parte INFERIOR (faixa/banda) com sombra/gradiente escuro semi-transparente, "
+            "e sobre esse overlay posicione o texto do TÍTULO de forma centralizada e altamente legível. "
+            f"O texto deve ser exatamente o seguinte, entre parênteses: ({titulo}). "
+            "Todo o texto inserido DEVE estar em português do Brasil (pt-BR), incluindo o título. "
+            "Use tipografia forte, alto contraste e garanta legibilidade do texto sobre o overlay com sombra. "
+            "Evite posicionar texto nas bordas externas; utilize margens seguras. "
+            "O enquadramento deve ser adequado para redes sociais, com composição limpa e profissional."
         )
         
         # Adicionar elementos específicos se fornecidos
@@ -412,18 +415,20 @@ class PexelsImageTool:
             if len(response.content) == 0:
                 raise Exception("Conteúdo da imagem vazio")
             
-            print(f"Tamanho do conteúdo baixado: {len(response.content)} bytes")
+            logger.info(
+                "Tamanho do conteúdo baixado: %d bytes", len(response.content)
+            )
             
             # Converter para JPEG usando Pillow
             from io import BytesIO
             
             # Abrir a imagem baixada
             image = Image.open(BytesIO(response.content))
-            print(f"Imagem aberta: {image.size}, modo: {image.mode}")
+            logger.info("Imagem aberta: %s, modo: %s", image.size, image.mode)
             
             # Converter para RGB se necessário (JPEG não suporta transparência)
             if image.mode in ('RGBA', 'LA', 'P'):
-                print("Convertendo imagem para RGB...")
+                logger.info("Convertendo imagem para RGB...")
                 # Criar fundo branco
                 background = Image.new('RGB', image.size, (255, 255, 255))
                 if image.mode == 'P':
@@ -434,22 +439,22 @@ class PexelsImageTool:
                     background.paste(image)
                 image = background
             elif image.mode != 'RGB':
-                print(f"Convertendo de {image.mode} para RGB...")
+                logger.info("Convertendo de %s para RGB...", image.mode)
                 image = image.convert('RGB')
             
             # Salvar como JPEG com qualidade alta
-            print(f"Salvando imagem em: {filepath}")
+            logger.info("Salvando imagem em: %s", filepath)
             image.save(filepath, 'JPEG', quality=95, optimize=True)
             
             # Verificar se o arquivo foi salvo corretamente
             if os.path.exists(filepath):
                 file_size = os.path.getsize(filepath)
-                print(f"Arquivo salvo com {file_size} bytes")
+                logger.info("Arquivo salvo com %d bytes", file_size)
                 if file_size == 0:
                     raise Exception("Arquivo salvo com 0 bytes")
             return filepath
         except Exception as e:
-            print(f"Erro ao salvar imagem (base64): {e}")
+            logger.error("Erro ao salvar imagem (base64): %s", e)
             raise
 
     def _save_b64_image(self, b64_data: str, titulo: str, output_dir: str = "output") -> str:
@@ -489,7 +494,7 @@ class PexelsImageTool:
                 raise Exception('Falha ao salvar a imagem em disco')
             return filepath
         except Exception as e:
-            print(f"Erro ao salvar imagem (b64): {e}")
+            logger.error("Erro ao salvar imagem (b64): %s", e)
             raise
 
 class ContentGeneratorAgent:
@@ -608,7 +613,7 @@ class ContentGeneratorAgent:
                 image_data = None
                 if generate_image:
                     # Gerar imagem baseada no título
-                    print("\nGerando imagem para o conteúdo...")
+                    logger.info("Gerando imagem para o conteúdo...")
                     image_data = self.image_generator.generate_image(
                         titulo=content_data['titulo'],
                         elementos=[tema],
@@ -629,14 +634,16 @@ class ContentGeneratorAgent:
                 # Adicionar informações da imagem se gerada com sucesso
                 if image_data and isinstance(image_data, dict) and 'error' in image_data:
                     # Erro explícito vindo da ferramenta
-                    print("Não foi possível gerar a imagem")
+                    logger.error("Não foi possível gerar a imagem")
                     content_data['imagem'] = None
                     content_data['imagem_error'] = image_data['error']
                 elif image_data:
                     content_data['imagem'] = image_data
-                    print(f"Imagem gerada com sucesso: {image_data['local_path']}")
+                    logger.info(
+                        "Imagem gerada com sucesso: %s", image_data['local_path']
+                    )
                 else:
-                    print("Não foi possível gerar a imagem")
+                    logger.error("Não foi possível gerar a imagem")
                     content_data['imagem'] = None
                 
                 return content_data
@@ -644,7 +651,7 @@ class ContentGeneratorAgent:
                 raise ValueError("Estrutura JSON inválida")
                 
         except (json.JSONDecodeError, ValueError) as e:
-            print(f"Erro ao processar resposta do LLM: {e}")
+            logger.error("Erro ao processar resposta do LLM: %s", e)
             # Sem inventar conteúdo estruturado: não criar títulos/subtítulos mockados
             # Retornar conteúdo bruto limpo e apenas fontes validadas
             # Isso evita citar fontes falsas e evita rótulos no texto
@@ -687,7 +694,7 @@ class ResearchWorkflow:
         Returns:
             Resultado completo com metadados
         """
-        print(f"Iniciando pesquisa sobre: {tema}")
+        logger.info("Iniciando pesquisa sobre: %s", tema)
         
         # Gerar conteúdo estruturado
         content_data = self.content_agent.generate_structured_content(tema, generate_image=generate_image, estilo_imagem=estilo_imagem, tamanho=tamanho)
@@ -700,7 +707,7 @@ class ResearchWorkflow:
             'workflow_version': 'agno-1.0'
         }
         
-        print("Conteudo gerado com sucesso!")
+        logger.info("Conteúdo gerado com sucesso!")
         return result
     
     def save_results(self, data: Dict[str, Any], output_dir: str = "output"):
@@ -728,9 +735,8 @@ class ResearchWorkflow:
         with open(md_path, 'w', encoding='utf-8') as f:
             f.write(md_content)
         
-        print(f"Arquivos salvos:")
-        print(f"   JSON: {json_path}")
-        print(f"   Markdown: {md_path}")
+        logger.info("Arquivo JSON salvo em: %s", json_path)
+        logger.info("Arquivo Markdown salvo em: %s", md_path)
     
     def _convert_to_markdown(self, data: Dict[str, Any]) -> str:
         """Converte dados para formato Markdown"""
@@ -779,13 +785,15 @@ def main():
         # Salvar resultados
         workflow.save_results(resultado)
         
-        print(f"\nProcesso concluido com sucesso!")
-        print(f"Tema processado: {tema}")
-        print(f"Titulo gerado: {resultado['conteudo']['titulo']}")
-        print(f"Fontes encontradas: {len(resultado['conteudo']['fontes'])}")
-        
+        logger.info("Processo concluído com sucesso!")
+        logger.info("Tema processado: %s", tema)
+        logger.info("Título gerado: %s", resultado['conteudo']['titulo'])
+        logger.info(
+            "Fontes encontradas: %d", len(resultado['conteudo']['fontes'])
+        )
+
     except Exception as e:
-        print(f"Erro durante execucao: {e}")
+        logger.error("Erro durante execução: %s", e)
         raise
 
 if __name__ == "__main__":

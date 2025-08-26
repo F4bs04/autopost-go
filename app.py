@@ -10,7 +10,15 @@ import os
 from datetime import datetime, timedelta
 import asyncio
 
-from src.agente_ia import ResearchWorkflow, ContentGeneratorAgent, ImageGeneratorTool, PexelsImageTool
+from src.agente_ia import (
+    ResearchWorkflow,
+    ContentGeneratorAgent,
+    ImageGeneratorTool,
+    PexelsImageTool,
+)
+from src.logger import get_logger
+
+logger = get_logger(__name__)
 
 app = FastAPI(
     title="Clio Agent API",
@@ -25,9 +33,9 @@ cleanup_task = None
 
 @app.on_event("startup")
 async def startup_event():
-    print("🚀 Clio Agent API iniciando...")
-    print(f"📍 Health check disponível em: /api/health")
-    print(f"📚 Documentação em: /docs")
+    logger.info("🚀 Clio Agent API iniciando...")
+    logger.info("📍 Health check disponível em: /api/health")
+    logger.info("📚 Documentação em: /docs")
     # Iniciar tarefa assíncrona para limpar imagens temporárias
     async def _cleanup_loop():
         while True:
@@ -44,7 +52,7 @@ async def startup_event():
                                 os.remove(fpath)
                     except Exception as _e:
                         # apenas loga; nunca derruba o loop
-                        print(f"[cleanup] erro removendo {fpath}: {_e}")
+                        logger.error("[cleanup] erro removendo %s: %s", fpath, _e)
 
                 # Limpeza de textos gerados (JSON/MD) com mais de 24h
                 content_dir = "output"
@@ -56,9 +64,11 @@ async def startup_event():
                             if mtime < cutoff:
                                 os.remove(fpath)
                     except Exception as _e:
-                        print(f"[cleanup] erro removendo conteúdo {fpath}: {_e}")
+                        logger.error(
+                            "[cleanup] erro removendo conteúdo %s: %s", fpath, _e
+                        )
             except Exception as e:
-                print(f"[cleanup] erro no ciclo: {e}")
+                logger.error("[cleanup] erro no ciclo: %s", e)
             # aguarda 1 hora entre limpezas
             await asyncio.sleep(3600)
 
@@ -222,11 +232,10 @@ async def generate(req: GenerateRequest, request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        error_details = traceback.format_exc()
-        print(f"Erro na geração: {str(e)}")
-        print(f"Stack trace: {error_details}")
-        raise HTTPException(status_code=500, detail=f"Erro ao gerar conteúdo: {str(e)}")
+        logger.exception("Erro na geração")
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao gerar conteúdo: {str(e)}"
+        )
 
 
 @app.get("/")
