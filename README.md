@@ -6,7 +6,7 @@ Este projeto implementa um agente de inteligência artificial usando o **Agno Fr
 
 1. **Instalar dependências**:
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.lock
 ```
 
 2. **Configurar chave OpenAI** no arquivo `.env`:
@@ -89,15 +89,19 @@ Veja [docs/README.md](docs/README.md) para documentação detalhada.
 ## 📦 Dependências
 
 ```txt
-openai>=1.12.0          # API OpenAI
-requests>=2.31.0        # HTTP requests
-beautifulsoup4>=4.12.2  # HTML parsing
-python-dotenv>=1.0.0    # Variáveis ambiente
-agno>=1.7.0            # Framework principal
-pydantic>=2.11.0       # Validação dados
-typer>=0.16.0          # CLI interface
-rich>=14.0.0           # Output formatado
+openai==1.12.0          # API OpenAI
+requests==2.31.0        # HTTP requests
+beautifulsoup4==4.12.2  # HTML parsing
+python-dotenv==1.0.0    # Variáveis ambiente
+pydantic==2.11.0        # Validação dados
+typer==0.16.0           # CLI interface
+rich==14.0.0            # Output formatado
+Pillow==10.0.0          # Imagens
+fastapi==0.111.0        # API
+uvicorn[standard]==0.30.0  # Servidor ASGI
 ```
+
+Veja `docs/DEPENDENCIAS.md` para atualizar ou revisar as bibliotecas.
 
 ---
 
