@@ -154,7 +154,7 @@ class WebSearchTool:
 class ImageGeneratorTool:
     """Ferramenta para geração de imagens usando o endpoint de imagens da OpenAI"""
     
-    def __init__(self):
+    def __init__(self, image_size: Optional[str] = None):
         self.name = "image_generator"
         # Cliente OpenAI (lê OPENAI_API_KEY do ambiente)
         self.client = OpenAI()
@@ -164,7 +164,7 @@ class ImageGeneratorTool:
         # Tamanho padrão otimizado para compatibilidade e velocidade
         # Para gpt-image-1, suportado: '1024x1024', '1024x1536', '1536x1024', 'auto'
         # Para dall-e-3, tamanhos maiores são permitidos, mas podem ser mais lentos
-        self.image_size = os.getenv('IMAGE_SIZE', '1536x1024')
+        self.image_size = image_size or os.getenv('IMAGE_SIZE', '1024x1024')
     
     def generate_image(self, titulo: str, elementos: List[str] = None, estilo_imagem: str = "realista", save_to_temp: bool = True, size: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
@@ -186,11 +186,27 @@ class ImageGeneratorTool:
             
             # Gerar imagem usando o modelo de imagens da OpenAI (sem response_format)
             model_to_use = self.image_model
-            # Normalizar tamanho conforme o modelo para evitar 400 + retry
+
+            # Conjuntos de tamanhos permitidos
             allowed_gpt_image1 = {"1024x1024", "1024x1536", "1536x1024", "auto"}
-            size_to_use = size or self.image_size
-            if model_to_use == 'gpt-image-1' and size_to_use not in allowed_gpt_image1:
-                size_to_use = '1536x1024'
+            allowed_dalle3 = {"1024x1024", "1024x1792", "1792x1024"}
+
+            def _smallest_size(sizes: set[str]) -> str:
+                numeric = [s for s in sizes if "x" in s]
+                return min(numeric, key=lambda s: int(s.split("x")[0]) * int(s.split("x")[1]))
+
+            allowed_sizes = allowed_gpt_image1 if model_to_use == 'gpt-image-1' else allowed_dalle3
+            default_size = self.image_size if self.image_size in allowed_sizes else _smallest_size(allowed_sizes)
+            size_to_use = size or default_size
+            if size_to_use not in allowed_sizes:
+                logger.warning(
+                    "Tamanho %s não suportado para %s, usando %s",
+                    size_to_use,
+                    model_to_use,
+                    _smallest_size(allowed_sizes),
+                )
+                size_to_use = _smallest_size(allowed_sizes)
+
             try:
                 # Preferir base64 no gpt-image-1 para evitar dependência de URL externa
                 extra_args = {}
@@ -209,11 +225,11 @@ class ImageGeneratorTool:
                 logger.error("Erro com %s: %s", model_to_use, err_msg)
                 if model_to_use == 'gpt-image-1':
                     logger.info("Tentando fallback para dall-e-3...")
-                    # Ajustar tamanho permitido para dall-e-3
-                    allowed_dalle3 = {"1024x1024", "1024x1792", "1792x1024"}
-                    size_for_dalle3 = (size or self.image_size)
-                    size_for_dalle3 = size_for_dalle3 if size_for_dalle3 in allowed_dalle3 else "1792x1024"
-                    # Para dall-e-3, manter padrão (normalmente retorna URL)
+                    allowed_sizes = allowed_dalle3
+                    default_size = self.image_size if self.image_size in allowed_sizes else _smallest_size(allowed_sizes)
+                    size_for_dalle3 = size or default_size
+                    if size_for_dalle3 not in allowed_sizes:
+                        size_for_dalle3 = _smallest_size(allowed_sizes)
                     response = self.client.images.generate(
                         model='dall-e-3',
                         prompt=prompt,
@@ -221,6 +237,7 @@ class ImageGeneratorTool:
                         n=1
                     )
                     model_to_use = 'dall-e-3'
+                    size_to_use = size_for_dalle3
                 else:
                     raise
 

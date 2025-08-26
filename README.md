@@ -76,6 +76,17 @@ resultado = agente.processar_tema("blockchain")
 print(resultado)
 ```
 
+## 🖼️ Tamanhos de Imagem e Desempenho
+
+O gerador de imagens utiliza o tamanho `1024x1024` por padrão. Tamanhos maiores podem produzir resultados com mais detalhes,
+mas aumentam o tempo de resposta e o custo da requisição à API:
+
+- `1024x1024`: equilíbrio entre qualidade e velocidade (padrão).
+- `1024x1536` ou `1536x1024`: resolução maior com tempo de geração mais lento.
+- `1024x1792` ou `1792x1024` (DALL·E 3): maior definição, porém com maior latência.
+
+Quando nenhum tamanho é informado, o agente seleciona automaticamente o menor compatível para reduzir o tempo de geração.
+
 ## 🧪 Executar Testes
 
 ```bash
