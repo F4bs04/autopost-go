@@ -10,7 +10,7 @@ import os
 from datetime import datetime, timedelta
 import asyncio
 
-from src.agente_ia import ResearchWorkflow, ContentGeneratorAgent, ImageGeneratorTool, PexelsImageTool
+from src.agente_ia import ResearchWorkflow, ContentGeneratorAgent, ImageGeneratorTool, PexelsImageTool, FreepikImageGeneratorTool
 
 app = FastAPI(
     title="Clio Agent API",
@@ -287,6 +287,23 @@ async def health_check():
         ]
     )
 
+
+@app.get("/api/image-config")
+async def image_config():
+    """Diagnóstico: retorna a configuração de geração de imagem atualmente em uso (sem segredos).
+    Útil para verificar se o serviço está rodando com gpt-image-1 e fallback desabilitado.
+    """
+    try:
+        return {
+            "IMAGE_MODEL": os.getenv("IMAGE_MODEL", "gpt-image-1"),
+            "DISABLE_IMAGE_FALLBACK": os.getenv("DISABLE_IMAGE_FALLBACK", "true"),
+            "IMAGE_SIZE": os.getenv("IMAGE_SIZE", "1536x1024"),
+            "PEXELS_CONFIGURED": bool(os.getenv("PEXELS_API_KEY")),
+            "FREEPIK_CONFIGURED": bool(os.getenv("FREEPIK_API_KEY")),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao ler configuração: {str(e)}")
+
 @app.post("/api/regenerate-text")
 async def regenerate_text(req: RegenerateTextRequest):
     """Regenera apenas o texto (sem imagem) para um tema."""
@@ -316,6 +333,16 @@ async def regenerate_image(req: RegenerateImageRequest, request: Request):
                 query = req.tema or req.titulo
                 ptool = PexelsImageTool()
                 img = ptool.fetch_image(tema=query, size=req.tamanho)
+            elif fonte == "freepik":
+                elementos = [req.tema] if req.tema else None
+                ftool = FreepikImageGeneratorTool()
+                img = ftool.generate_image(
+                    titulo=req.titulo,
+                    elementos=elementos,
+                    estilo_imagem=req.estilo_imagem,
+                    save_to_temp=True,
+                    size=req.tamanho
+                )
             else:
                 elementos = [req.tema] if req.tema else None
                 img = tool.generate_image(
@@ -356,16 +383,8 @@ async def regenerate_image(req: RegenerateImageRequest, request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao gerar imagem: {str(e)}")
 
-
-class GenerateImageRequest(BaseModel):
-    titulo: str
-    tema: Optional[str] = None
-    estilo_imagem: Optional[str] = "realista"
-    tamanho: Optional[str] = None
-    fonte: Optional[str] = "openai"
-
 @app.post("/api/generate-image")
-async def generate_image(req: GenerateImageRequest, request: Request):
+async def generate_image(req: RegenerateImageRequest, request: Request):
     """Gera apenas a imagem a partir de um título/tema e retorna metadados da imagem.
     O título será incluído como texto dentro da imagem (conforme prompt da ferramenta).
     """
@@ -379,6 +398,16 @@ async def generate_image(req: GenerateImageRequest, request: Request):
                 query = req.tema or req.titulo
                 ptool = PexelsImageTool()
                 img = ptool.fetch_image(tema=query, size=req.tamanho)
+            elif fonte == "freepik":
+                elementos = [req.tema] if req.tema else None
+                ftool = FreepikImageGeneratorTool()
+                img = ftool.generate_image(
+                    titulo=req.titulo,
+                    elementos=elementos,
+                    estilo_imagem=req.estilo_imagem,
+                    save_to_temp=True,
+                    size=req.tamanho
+                )
             else:
                 elementos = [req.tema] if req.tema else None
                 img = tool.generate_image(
@@ -418,7 +447,7 @@ async def generate_image(req: GenerateImageRequest, request: Request):
 
 
 @app.post("/api/generate-pexels-image")
-async def generate_pexels_image(req: GenerateImageRequest, request: Request):
+async def generate_pexels_image(req: RegenerateImageRequest, request: Request):
     """Compat: endpoint específico para Pexels usado por alguns frontends externos.
     Força a busca no Pexels e retorna o mesmo formato de resposta dos outros endpoints.
     """

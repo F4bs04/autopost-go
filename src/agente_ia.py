@@ -166,7 +166,7 @@ class ImageGeneratorTool:
         # Para dall-e-3, tamanhos maiores são permitidos, mas podem ser mais lentos
         self.image_size = os.getenv('IMAGE_SIZE', '1536x1024')
     
-    def generate_image(self, titulo: str, elementos: List[str] = None, estilo_imagem: str = "realista", save_to_temp: bool = True, size: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def generate_image(self, titulo: str, elementos: List[str] = None, estilo_imagem: str = "realista", save_to_temp: bool = True, size: Optional[str] = None, prompt: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Gera uma imagem baseada no título e elementos do conteúdo
         
@@ -179,10 +179,10 @@ class ImageGeneratorTool:
             Dicionário com informações da imagem gerada ou None se falhar
         """
         try:
-            # Criar prompt personalizado baseado no template fornecido
-            prompt = self._create_image_prompt(titulo, elementos, estilo_imagem)
+            # Usar prompt customizado se fornecido; caso contrário, criar com base no template
+            prompt_text = (prompt.strip() if isinstance(prompt, str) else None) or self._create_image_prompt(titulo, elementos, estilo_imagem)
             
-            print(f"Gerando imagem com prompt: {prompt[:100]}...")
+            print(f"Gerando imagem com prompt: {prompt_text[:100]}...")
             
             # Gerar imagem usando o modelo de imagens da OpenAI (sem response_format)
             model_to_use = self.image_model
@@ -221,7 +221,7 @@ class ImageGeneratorTool:
                     extra_args["response_format"] = "b64_json"
                 response = self.client.images.generate(
                     model=model_to_use,
-                    prompt=prompt,
+                    prompt=prompt_text,
                     size=size_to_use,
                     n=1,
                     **extra_args
@@ -246,7 +246,7 @@ class ImageGeneratorTool:
                     # Para dall-e-3, manter padrão (normalmente retorna URL)
                     response = self.client.images.generate(
                         model='dall-e-3',
-                        prompt=prompt,
+                        prompt=prompt_text,
                         size=size_for_dalle3,
                         n=1
                     )
@@ -292,7 +292,7 @@ class ImageGeneratorTool:
                 'url': image_url,
                 'local_path': image_path,
                 'public_url': public_url,
-                'prompt_usado': prompt,
+                'prompt_usado': prompt_text,
                 'modelo': model_to_use,
                 'tamanho': size_to_use,
                 'data_geracao': datetime.now().isoformat()
